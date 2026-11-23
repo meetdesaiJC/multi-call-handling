@@ -1,0 +1,234 @@
+#!/usr/bin/env node
+/**
+ * Generate React Icon components from src/icons/svg/{slug}/{16|20|24}.svg
+ *
+ * Writes:
+ *   src/components/Icon/icons.generated.tsx
+ *   src/components/Icon/icons.tsx  (re-export + legacy aliases)
+ */
+import fs from "node:fs";
+import path from "node:path";
+import {
+  GENERATED_ICONS_PATH,
+  ROOT,
+  SIZES,
+  SVG_DIR,
+  toIconComponentName,
+  USED_ICON_ALIASES,
+} from "./lib.mjs";
+import { normalizeColors } from "./extract-strip.mjs";
+
+function innerSvg(svg) {
+  const match = svg.match(/<svg[^>]*>([\s\S]*)<\/svg>/i);
+  return (match ? match[1] : svg).trim();
+}
+
+function svgToJsx(inner) {
+  return normalizeColors(inner)
+    .replace(/\sclip-path=/g, " clipPath=")
+    .replace(/\sstroke-width=/g, " strokeWidth=")
+    .replace(/\sstroke-linecap=/g, " strokeLinecap=")
+    .replace(/\sstroke-linejoin=/g, " strokeLinejoin=")
+    .replace(/\sstroke-dasharray=/g, " strokeDasharray=")
+    .replace(/\sstroke-miterlimit=/g, " strokeMiterlimit=")
+    .replace(/\sfill-rule=/g, " fillRule=")
+    .replace(/\sclip-rule=/g, " clipRule=")
+    .replace(/\sfill-opacity=/g, " fillOpacity=")
+    .replace(/\sstroke-opacity=/g, " strokeOpacity=")
+    .replace(/\scolor-interpolation-filters=/g, " colorInterpolationFilters=")
+    .replace(/\sstop-color=/g, " stopColor=")
+    .replace(/\sstop-opacity=/g, " stopOpacity=")
+    .replace(/\sfont-family=/g, " fontFamily=")
+    .replace(/\sfont-size=/g, " fontSize=")
+    .replace(/\sletter-spacing=/g, " letterSpacing=")
+    .replace(/\sxlink:href=/g, " xlinkHref=")
+    .replace(/\smaskUnits=/g, " maskUnits=")
+    .replace(/\sclass=/g, " className=")
+    // style="mask-type:luminance" → style={{ maskType: "luminance" }}
+    .replace(/\sstyle="([^"]*)"/g, (_, css) => {
+      const entries = css
+        .split(";")
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map((pair) => {
+          const [k, ...rest] = pair.split(":");
+          const key = k
+            .trim()
+            .replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+          const val = rest.join(":").trim();
+          return `${key}: "${val}"`;
+        });
+      return ` style={{ ${entries.join(", ")} }}`;
+    });
+}
+
+function loadVariants(slug) {
+  const dir = path.join(SVG_DIR, slug);
+  if (!fs.existsSync(dir)) return null;
+  const variants = {};
+  for (const size of SIZES) {
+    const file = path.join(dir, `${size}.svg`);
+    if (fs.existsSync(file)) {
+      variants[size] = svgToJsx(innerSvg(fs.readFileSync(file, "utf8")));
+    }
+  }
+  return Object.keys(variants).length ? variants : null;
+}
+
+function pickDisplayName(slug) {
+  // Prefer USED_ICON_ALIASES reverse map for stable public names
+  for (const [comp, figmaName] of Object.entries(USED_ICON_ALIASES)) {
+    const aliasSlug = figmaName
+      .toLowerCase()
+      .replace(/['"]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+    if (aliasSlug === slug) return comp;
+  }
+  return toIconComponentName(slug);
+}
+
+function generateComponent(name, variants) {
+  const available = SIZES.filter((s) => variants[s]);
+  const defaultSize = available.includes(24)
+    ? 24
+    : available.includes(20)
+      ? 20
+      : available[0];
+
+  const cases = available
+    .map((size) => {
+      const body = variants[size]
+        .split("\n")
+        .map((l) => `          ${l}`)
+        .join("\n");
+      return `      case ${size}:\n        return (\n          <>\n${body}\n          </>\n        );`;
+    })
+    .join("\n");
+
+  return `export function ${name}({ size = ${defaultSize}, ...props }: IconProps) {
+  const paths = (() => {
+    switch (size as IconSize) {
+${cases}
+      default:
+        return (
+          <>
+${variants[defaultSize]
+  .split("\n")
+  .map((l) => `            ${l}`)
+  .join("\n")}
+          </>
+        );
+    }
+  })();
+
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox={\`0 0 \${size} \${size}\`}
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      {...props}
+    >
+      {paths}
+    </svg>
+  );
+}
+`;
+}
+
+function main() {
+  if (!fs.existsSync(SVG_DIR)) {
+    console.error(`No SVG dir at ${SVG_DIR}. Run icons:pull first.`);
+    process.exit(1);
+  }
+
+  const slugs = fs
+    .readdirSync(SVG_DIR, { withFileTypes: true })
+    .filter((d) => d.isDirectory())
+    .map((d) => d.name)
+    .sort();
+
+  const components = [];
+  const usedNames = new Set();
+
+  for (const slug of slugs) {
+    const variants = loadVariants(slug);
+    if (!variants) continue;
+    let name = pickDisplayName(slug);
+    if (usedNames.has(name)) {
+      name = toIconComponentName(slug);
+    }
+    // Still collide? append slug hash
+    if (usedNames.has(name)) {
+      name = `${name}Alt`;
+    }
+    usedNames.add(name);
+    components.push({ name, slug, code: generateComponent(name, variants) });
+  }
+
+  const header = `/* eslint-disable */
+/**
+ * AUTO-GENERATED by scripts/icons/generate.mjs — do not edit by hand.
+ * Source SVGs: src/icons/svg/{slug}/{16|20|24}.svg
+ * Re-generate: pnpm icons:generate
+ */
+import * as React from "react";
+
+export type IconSize = 16 | 20 | 24;
+
+export type IconProps = React.SVGProps<SVGSVGElement> & {
+  /** Figma frame size. Stroke weights differ per size — do not CSS-scale across sizes. */
+  size?: IconSize;
+};
+
+`;
+
+  const body = components.map((c) => c.code).join("\n");
+  fs.writeFileSync(GENERATED_ICONS_PATH, header + body);
+  console.log(`Wrote ${GENERATED_ICONS_PATH} (${components.length} icons)`);
+
+  // Public entry: re-export generated + explicit legacy aliases for renamed ones
+  const aliases = [];
+  // IconSalesDialer1 etc. may map to sales-dialer-1
+  for (const [comp, figmaName] of Object.entries(USED_ICON_ALIASES)) {
+    if (usedNames.has(comp)) continue;
+    const slug = figmaName
+      .toLowerCase()
+      .replace(/['"]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+    const generated = components.find((c) => c.slug === slug);
+    if (generated && generated.name !== comp) {
+      aliases.push(`export { ${generated.name} as ${comp} } from "./icons.generated";`);
+    }
+  }
+
+  const publicFile = `/**
+ * Icon library — framed SVGs synced from Figma Design System 2.0 / Icons.
+ * Each icon ships size 16 / 20 / 24 (exact Figma frames + stroke weights).
+ *
+ * Pull missing icons:  pnpm icons:pull "<Figma name>" --size 16,20,24
+ * Regenerate:          pnpm icons:generate
+ *
+ * Pair CSS box with variant: size-4↔16, size-5↔20, size-6↔24.
+ */
+export type { IconProps, IconSize } from "./icons.generated";
+export * from "./icons.generated";
+${aliases.length ? "\n// Legacy / explicit aliases\n" + aliases.join("\n") + "\n" : ""}`;
+
+  const publicPath = path.join(ROOT, "src/components/Icon/icons.tsx");
+  // icons.tsx also holds hand-made icons the Figma set doesn't have (e.g.
+  // IconMessageCircle2). Everything from HAND_MADE_MARKER down is kept as-is;
+  // regenerating used to wipe it and break every prototype importing them.
+  const HAND_MADE_MARKER = "/* ── Hand-made icons";
+  const existing = fs.existsSync(publicPath) ? fs.readFileSync(publicPath, "utf8") : "";
+  const markerAt = existing.indexOf(HAND_MADE_MARKER);
+  const handMade = markerAt >= 0 ? "\n" + existing.slice(markerAt) : "";
+  fs.writeFileSync(publicPath, publicFile + handMade);
+  console.log(`Wrote ${publicPath}`);
+}
+
+main();

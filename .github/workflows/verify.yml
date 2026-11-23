@@ -1,0 +1,43 @@
+name: Verify
+
+# Guards the two architectural rules in CLAUDE.md — dependencies point inward,
+# and colours come from tokens — plus the type and build health of both
+# prototypes. `npm run verify` runs the identical set locally.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # Architecture gates. These fail on a cross-prototype import or a raw
+      # colour, which are the two mistakes that quietly undo the design system.
+      - name: Lint
+        run: npm run lint
+
+      # Note: tsconfig only includes src/, so this does NOT cover the
+      # prototypes. The builds below are what type-check those.
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build justcall-ai prototype
+        run: npm run build
+
+      - name: Build add-ons prototype
+        run: npm run build:add-ons
+
+      - name: Build Storybook
+        run: npm run build-storybook

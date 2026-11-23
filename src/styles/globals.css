@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+/* Design tokens, split by tier — src/styles/tokens/, and CLAUDE.md §3. */
+@import "./tokens/index.css";
+
+/* Cursor defaults, skeleton shimmer, and component motion (§4). */
+@import "./base.css";

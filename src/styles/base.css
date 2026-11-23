@@ -1,0 +1,1325 @@
+/* ================================================================== */
+/* BASE + COMPONENT CSS                                               */
+/* Not tokens: cursor defaults, the skeleton shimmer, and the          */
+/* dropdown / sidesheet motion.                                        */
+/* ================================================================== */
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ================================================================== */
+/* CURSOR BASE                                                        */
+/* Tailwind v4 preflight no longer sets cursor: pointer on buttons.   */
+/* Restore the hand cursor on every clickable element by default so   */
+/* individual components don't each need cursor-pointer added.       */
+/* ================================================================== */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+a[href],
+select,
+summary,
+label[for],
+input[type="checkbox"]:not(:disabled),
+input[type="radio"]:not(:disabled) {
+  cursor: pointer;
+}
+
+/* License-locked controls (LockedControl) stay focusable, so they match the
+   pointer rule above; this puts the not-allowed cursor back. One rule for
+   any locked control, so each one doesn't need its own override. */
+[data-locked="true"],
+button[data-locked="true"] {
+  cursor: not-allowed;
+}
+
+/* ================================================================== */
+/* SKELETON / SHIMMER LOADING                                        */
+/* Use `.skeleton` on any placeholder bar shown while real data       */
+/* loads (e.g. a table row). Sizing comes from the element itself —   */
+/* set width/height with Tailwind utilities.                          */
+/* ================================================================== */
+@theme static {
+  --animate-shimmer: shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 150% 0;
+  }
+  100% {
+    background-position: -50% 0;
+  }
+}
+
+.skeleton {
+  border-radius: 4px;
+  background-image: linear-gradient(
+    100deg,
+    var(--color-line) 40%,
+    var(--color-secondary-bg) 50%,
+    var(--color-line) 60%
+  );
+  background-size: 200% 100%;
+  animation: var(--animate-shimmer);
+}
+
+/* ================================================================== */
+/* SIDESHEET MOTION                                                    */
+/* Right-to-left slide + scrim fade. Open and close use different      */
+/* durations/easing, so the transition is declared on each target      */
+/* `data-state` rather than once on the base class — the timing        */
+/* that applies to a change is the one on the *new* computed style.    */
+/* ================================================================== */
+.sidesheet-panel[data-state="open"] {
+  transform: translateX(0);
+  transition: transform var(--duration-slow) var(--ease-entrance);
+}
+
+.sidesheet-panel[data-state="closed"] {
+  transform: translateX(100%);
+  transition: transform var(--duration-moderate) var(--ease-exit);
+}
+
+.sidesheet-scrim[data-state="open"] {
+  opacity: 1;
+  transition: opacity var(--duration-moderate) var(--ease-entrance);
+}
+
+.sidesheet-scrim[data-state="closed"] {
+  opacity: 0;
+  transition: opacity var(--duration-base) var(--ease-exit);
+}
+
+/* ================================================================== */
+/* TOAST MOTION                                                        */
+/* Enter and exit land on different offsets (+8px settling to 0, then  */
+/* lifting to -4px) so this needs a distinct "entering" snapshot       */
+/* rather than reusing one end state for both directions, unlike the   */
+/* sidesheet's symmetric open/closed above.                            */
+/* ================================================================== */
+.toast-panel[data-state="entering"] {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.toast-panel[data-state="open"] {
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity var(--duration-moderate) var(--ease-entrance),
+    transform var(--duration-moderate) var(--ease-entrance);
+}
+
+.toast-panel[data-state="exiting"] {
+  opacity: 0;
+  transform: translateY(-4px);
+  transition:
+    opacity var(--duration-base) var(--ease-exit),
+    transform var(--duration-base) var(--ease-exit);
+}
+
+/* Reduced motion: no travel, the fade alone carries enter and exit. */
+@media (prefers-reduced-motion: reduce) {
+  .toast-panel[data-state] {
+    transform: none;
+  }
+}
+
+.toast-check[data-state="entering"] {
+  transform: scale(0.85);
+}
+
+.toast-check[data-state="open"] {
+  transform: scale(1);
+  transition: transform var(--duration-fast) var(--ease-entrance);
+}
+
+/* ================================================================== */
+/* DISMISSIBLE MESSAGE MOTION (Alert, Banner)                          */
+/* Messages arrive from just above their resting place — they read as   */
+/* dropping into the page, which is where a banner or inline alert      */
+/* actually comes from. Enter `moderate`, exit `base`.                  */
+/*                                                                    */
+/* These sit in document flow, so the *space* they occupy still         */
+/* collapses instantly on unmount; §4 rules out animating height in     */
+/* flow. Fading and sliding is what can be done without reflowing the   */
+/* page on every frame.                                                 */
+/*                                                                    */
+/* Keep the exit step in sync with DISMISS_EXIT_MS in Alert.tsx /       */
+/* Banner.tsx.                                                          */
+/* ================================================================== */
+@keyframes dismissible-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes dismissible-out {
+  to {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes dismissible-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes dismissible-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+.dismissible[data-state="open"] {
+  animation: dismissible-in var(--duration-moderate) var(--ease-entrance) both;
+}
+
+.dismissible[data-state="closed"] {
+  animation: dismissible-out var(--duration-base) var(--ease-exit) both;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dismissible[data-state="open"] {
+    animation-name: dismissible-fade-in;
+  }
+
+  .dismissible[data-state="closed"] {
+    animation-name: dismissible-fade-out;
+  }
+}
+
+/* ================================================================== */
+/* TAG DISMISS MOTION                                                  */
+/* A tag is small and sits in a row of siblings, so it scales rather    */
+/* than travels — sliding one tag would read as the whole row drifting. */
+/* `scale`, not `transform`: Tailwind v4 uses the standalone property   */
+/* on tags elsewhere, and mixing the two here would overwrite it.       */
+/* One step faster than a message in both directions, because the       */
+/* element is a fraction of the size. Exit matches TAG_EXIT_MS.         */
+/* ================================================================== */
+@keyframes tag-in {
+  from {
+    opacity: 0;
+    scale: 0.94;
+  }
+}
+
+@keyframes tag-out {
+  to {
+    opacity: 0;
+    scale: 0.96;
+  }
+}
+
+@keyframes tag-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes tag-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+.tag-presence[data-state="open"] {
+  animation: tag-in var(--duration-base) var(--ease-entrance) both;
+}
+
+.tag-presence[data-state="closed"] {
+  animation: tag-out var(--duration-fast) var(--ease-exit) both;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tag-presence[data-state="open"] {
+    animation-name: tag-fade-in;
+  }
+
+  .tag-presence[data-state="closed"] {
+    animation-name: tag-fade-out;
+  }
+}
+
+/* ================================================================== */
+/* TOOLTIP MOTION                                                      */
+/* Opacity only, deliberately. The bubble's positioning writes          */
+/* `transform` directly on the same element every scroll and resize, so */
+/* anything transform-based here would be overwritten mid-animation.    */
+/* §4 exempts opacity-only fades from needing a reduced-motion path.    */
+/*                                                                    */
+/* `fast` in / `micro` out: a tooltip that lingers after the pointer    */
+/* leaves feels stuck to the cursor. Exit matches TOOLTIP_EXIT_MS.      */
+/* ================================================================== */
+@keyframes tooltip-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes tooltip-out {
+  to {
+    opacity: 0;
+  }
+}
+
+.tooltip-presence[data-state="open"] {
+  animation: tooltip-in var(--duration-fast) var(--ease-entrance) both;
+}
+
+.tooltip-presence[data-state="closed"] {
+  animation: tooltip-out var(--duration-micro) var(--ease-exit) both;
+  pointer-events: none;
+}
+
+/* ================================================================== */
+/* BUTTON PRESS                                                        */
+/* Two speeds on one element, which is why this is not a Tailwind       */
+/* `transition-colors`: the colour crossfade stays at `base` (unchanged */
+/* from Tailwind's own default, so no button's hover shifts), while the */
+/* press itself goes at `micro`. Press feedback has to feel like a      */
+/* consequence of the click, and 150ms already reads as lag when your   */
+/* finger is still on the button.                                       */
+/*                                                                     */
+/* `translate`, not `transform` — Tailwind v4 emits the standalone      */
+/* property, and a `transform` transition would match nothing here.     */
+/* ================================================================== */
+.button-press {
+  transition:
+    color var(--duration-base) var(--ease-standard),
+    background-color var(--duration-base) var(--ease-standard),
+    border-color var(--duration-base) var(--ease-standard),
+    translate var(--duration-micro) var(--ease-standard);
+}
+
+.button-press:active:not(:disabled):not([data-locked="true"]) {
+  translate: 0 1px;
+}
+
+/* Links sit in running text, so they keep the colour crossfade and skip
+   the nudge — moving one shifts the baseline of the sentence around it.
+   Same reason the `link` variant already drops its box padding. */
+.button-press-none:active:not(:disabled) {
+  translate: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button-press {
+    transition-property: color, background-color, border-color;
+  }
+
+  .button-press:active:not(:disabled) {
+    translate: none;
+  }
+}
+
+/* ================================================================== */
+/* THUMB MOTION                                                        */
+/* FeedbackThumbs. Casting a vote is a one-shot — `emphasis`, not a     */
+/* transition — so the glyph pops and a burst leaves the icon, then     */
+/* both are gone. Clearing a vote is the other case: nothing else on    */
+/* screen changes, so the glyph still has to acknowledge the click. It  */
+/* compresses and returns rather than nudging like `.button-press`,     */
+/* because the target is a 14px glyph inside a round button: a 1px      */
+/* translate on that reads as a rendering wobble, a scale reads as a    */
+/* press.                                                              */
+/*                                                                     */
+/* Re-triggered from FeedbackThumbs by a reflow restart on the glyph,     */
+/* not by remounting it — a keyed remount next to the burst left the      */
+/* previous SVG in the tree.                                              */
+/*                                                                     */
+/* Bounce shape is in the stops, not the curve: a keyframe block        */
+/* cannot read `--ease-*` (Chrome keeps the declaration and ignores     */
+/* it). The rule's `ease-standard` rounds each hop.                     */
+/*                                                                     */
+/* Standalone `scale` / `rotate` / `translate`, not `transform`: same   */
+/* reason as the notes landing bounce — Tailwind v4's property split    */
+/* is how these compose with neighbouring utilities.                    */
+/* ================================================================== */
+@keyframes thumb-press {
+  0% {
+    scale: 1;
+  }
+  40% {
+    scale: 0.88;
+  }
+  100% {
+    scale: 1;
+  }
+}
+
+.thumb-press {
+  animation: thumb-press var(--duration-base) var(--ease-standard);
+}
+
+@keyframes thumb-like {
+  0% {
+    scale: 1;
+    rotate: 0deg;
+  }
+  16% {
+    scale: 1.42;
+    rotate: -18deg;
+  }
+  34% {
+    scale: 0.88;
+    rotate: 10deg;
+  }
+  52% {
+    scale: 1.12;
+    rotate: -6deg;
+  }
+  70% {
+    scale: 0.96;
+    rotate: 2deg;
+  }
+  100% {
+    scale: 1;
+    rotate: 0deg;
+  }
+}
+
+@keyframes thumb-dislike {
+  0% {
+    scale: 1;
+    rotate: 0deg;
+  }
+  16% {
+    scale: 1.42;
+    rotate: 18deg;
+  }
+  34% {
+    scale: 0.88;
+    rotate: -10deg;
+  }
+  52% {
+    scale: 1.12;
+    rotate: 6deg;
+  }
+  70% {
+    scale: 0.96;
+    rotate: -2deg;
+  }
+  100% {
+    scale: 1;
+    rotate: 0deg;
+  }
+}
+
+.thumb-like {
+  display: inline-flex;
+  transform-origin: 32% 88%;
+  animation: thumb-like var(--duration-emphasis) var(--ease-standard);
+}
+
+.thumb-dislike {
+  display: inline-flex;
+  transform-origin: 32% 12%;
+  animation: thumb-dislike var(--duration-emphasis) var(--ease-standard);
+}
+
+/* Unchecking is the exit of a vote, so it is one step quicker than the
+   pop and has no burst — the fill dropping to a stroke is the receipt. */
+@keyframes thumb-unlike {
+  0% {
+    scale: 1;
+    rotate: 0deg;
+  }
+  45% {
+    scale: 0.8;
+    rotate: 10deg;
+  }
+  100% {
+    scale: 1;
+    rotate: 0deg;
+  }
+}
+
+@keyframes thumb-unlike-down {
+  0% {
+    scale: 1;
+    rotate: 0deg;
+  }
+  45% {
+    scale: 0.8;
+    rotate: -10deg;
+  }
+  100% {
+    scale: 1;
+    rotate: 0deg;
+  }
+}
+
+.thumb-unlike {
+  display: inline-flex;
+  transform-origin: 32% 88%;
+  animation: thumb-unlike var(--duration-moderate) var(--ease-standard);
+}
+
+.thumb-unlike-down {
+  display: inline-flex;
+  transform-origin: 32% 12%;
+  animation: thumb-unlike-down var(--duration-moderate) var(--ease-standard);
+}
+
+.thumb-burst {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.thumb-burst-ring {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  border: 1.5px solid currentColor;
+  border-radius: 9999px;
+  opacity: 0;
+  animation: thumb-burst-ring var(--duration-emphasis) var(--ease-exit) both;
+}
+
+@keyframes thumb-burst-ring {
+  0% {
+    scale: 0.4;
+    opacity: 0.4;
+  }
+  100% {
+    scale: 1.85;
+    opacity: 0;
+  }
+}
+
+.thumb-burst-dot {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--burst-size, 3px);
+  height: var(--burst-size, 3px);
+  margin: calc(var(--burst-size, 3px) / -2) 0 0 calc(var(--burst-size, 3px) / -2);
+  border-radius: 9999px;
+  background-color: currentColor;
+  opacity: 0;
+  animation: thumb-burst-dot var(--duration-emphasis) var(--ease-entrance) both;
+}
+
+.thumb-burst-spark {
+  border-radius: 0;
+  clip-path: polygon(
+    50% 0%,
+    62% 38%,
+    100% 50%,
+    62% 62%,
+    50% 100%,
+    38% 62%,
+    0% 50%,
+    38% 38%
+  );
+}
+
+@keyframes thumb-burst-dot {
+  0% {
+    translate: 0 0;
+    scale: 0;
+    opacity: 1;
+  }
+  16% {
+    scale: 1.15;
+    opacity: 1;
+  }
+  100% {
+    translate: var(--burst-x) var(--burst-y);
+    scale: 0.2;
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thumb-press,
+  .thumb-like,
+  .thumb-dislike,
+  .thumb-unlike,
+  .thumb-unlike-down,
+  .thumb-burst-ring,
+  .thumb-burst-dot {
+    animation: none;
+  }
+}
+
+/* ================================================================== */
+/* MODAL MOTION                                                        */
+/* A centred dialog barely travels, so it scales into place rather     */
+/* than crossing the screen like a sidesheet — which is why it takes   */
+/* `moderate` in and `base` out rather than the sidesheet's            */
+/* slow/moderate. One step apart, per §4's pairing rule.               */
+/*                                                                    */
+/* Keep the exit step in sync with MODAL_CLOSE_MS in Modal.tsx — the   */
+/* dialog stays mounted that long so the exit can finish.              */
+/* ================================================================== */
+@keyframes modal-scrim-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes modal-scrim-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes modal-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+/* Exits shorter than it enters, and settles less far: leaving at the
+   same distance it arrived reads as the dialog bouncing. */
+@keyframes modal-panel-out {
+  to {
+    opacity: 0;
+    transform: translateY(4px) scale(0.99);
+  }
+}
+
+/* Reduced motion still needs *an* animation, not none — the exit has to
+   run for its full duration or the unmount timer fires against a dialog
+   that already vanished. Drop the travel, keep the fade. */
+@keyframes modal-panel-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes modal-panel-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+.modal-scrim[data-state="open"] {
+  animation: modal-scrim-in var(--duration-moderate) var(--ease-entrance) both;
+}
+
+.modal-scrim[data-state="closed"] {
+  animation: modal-scrim-out var(--duration-base) var(--ease-exit) both;
+}
+
+.modal-panel[data-state="open"] {
+  animation: modal-panel-in var(--duration-moderate) var(--ease-entrance) both;
+}
+
+.modal-panel[data-state="closed"] {
+  animation: modal-panel-out var(--duration-base) var(--ease-exit) both;
+  /* Nothing in a dialog that is leaving should still be clickable. */
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-panel[data-state="open"] {
+    animation-name: modal-panel-fade-in;
+  }
+
+  .modal-panel[data-state="closed"] {
+    animation-name: modal-panel-fade-out;
+  }
+}
+
+/* ================================================================== */
+/* DROPDOWN MOTION                                                     */
+/* Open/close, chevron, item hover, and selected-check. Used by the    */
+/* Dropdown component and any overlay menu that adds these classes.    */
+/* Keep --duration-fast in sync with DROPDOWN_CLOSE_MS in              */
+/* useDropdownPresence.ts — the panel stays mounted that long so the   */
+/* exit animation can finish. Overlay only: never in document flow.    */
+/* ================================================================== */
+@keyframes dropdown-open {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes dropdown-close {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes dropdown-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes dropdown-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes dropdown-check-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.dropdown-panel[data-state="open"] {
+  animation: dropdown-open var(--duration-base) var(--ease-entrance) both;
+}
+
+.dropdown-panel[data-state="closed"] {
+  animation: dropdown-close var(--duration-fast) var(--ease-exit) both;
+  pointer-events: none;
+}
+
+/* A menu flipped above its trigger travels the other way — arriving from
+   below it and leaving downward — so the direction still reads as "out of the
+   trigger" rather than as the menu sliding past it. */
+@keyframes dropdown-open-up {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes dropdown-close-up {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+}
+
+.dropdown-panel[data-placement="top"][data-state="open"] {
+  animation-name: dropdown-open-up;
+}
+
+.dropdown-panel[data-placement="top"][data-state="closed"] {
+  animation-name: dropdown-close-up;
+}
+
+.dropdown-chevron {
+  display: inline-flex;
+  transform: rotate(0deg);
+  transition: transform var(--duration-base) var(--ease-standard);
+}
+
+.dropdown-chevron[data-open="true"] {
+  transform: rotate(180deg);
+}
+
+.dropdown-item {
+  transition: background-color var(--duration-micro) var(--ease-standard);
+}
+
+.dropdown-item[aria-selected="true"] {
+  transition-duration: var(--duration-fast);
+}
+
+.dropdown-check {
+  animation: dropdown-check-in var(--duration-fast) var(--ease-entrance) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dropdown-panel[data-state="open"] {
+    animation-name: dropdown-fade-in;
+  }
+
+  .dropdown-panel[data-state="closed"] {
+    animation-name: dropdown-fade-out;
+  }
+
+  /* Same specificity as the flipped rules above, and later — so a flipped
+     menu fades rather than travelling too. */
+  .dropdown-panel[data-placement="top"][data-state="open"] {
+    animation-name: dropdown-fade-in;
+  }
+
+  .dropdown-panel[data-placement="top"][data-state="closed"] {
+    animation-name: dropdown-fade-out;
+  }
+
+  .dropdown-chevron {
+    transition: none;
+  }
+}
+
+/* ================================================================== */
+/* SIDENAV NAV-BODY SWAP (JustCall AI micro-interaction)               */
+/* Logo + footer stay fixed. Only the scrollable nav body moves.       */
+/* Exit: base/ease-exit ~20px. Enter: moderate/ease-entrance ~20px.    */
+/* forward = exit left / enter from right; back = reverse.             */
+/* ================================================================== */
+.sidenav-body[data-motion="idle"] {
+  opacity: 1;
+  transform: translateX(0);
+  transition:
+    opacity var(--duration-moderate) var(--ease-entrance),
+    transform var(--duration-moderate) var(--ease-entrance);
+}
+
+.sidenav-body[data-motion="exit-to-left"] {
+  opacity: 0;
+  transform: translateX(-20px);
+  transition:
+    opacity var(--duration-base) var(--ease-exit),
+    transform var(--duration-base) var(--ease-exit);
+  pointer-events: none;
+}
+
+.sidenav-body[data-motion="exit-to-right"] {
+  opacity: 0;
+  transform: translateX(20px);
+  transition:
+    opacity var(--duration-base) var(--ease-exit),
+    transform var(--duration-base) var(--ease-exit);
+  pointer-events: none;
+}
+
+.sidenav-body[data-motion="enter-from-right"] {
+  opacity: 0;
+  transform: translateX(20px);
+  pointer-events: none;
+}
+
+.sidenav-body[data-motion="enter-from-left"] {
+  opacity: 0;
+  transform: translateX(-20px);
+  pointer-events: none;
+}
+
+.sidenav-content-layer {
+  transition: opacity var(--duration-moderate) var(--ease-exit);
+}
+
+.sidenav-content-layer[data-active="true"] {
+  opacity: 1;
+  transition-timing-function: var(--ease-entrance);
+  pointer-events: auto;
+}
+
+.sidenav-content-layer[data-active="false"] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidenav-body[data-motion],
+  .sidenav-content-layer {
+    transition: none !important;
+    transform: none !important;
+  }
+}
+
+/* ================================================================== */
+/* SEGMENTED TABS MOTION                                               */
+/* One white card that relocates between segments — the primary        */
+/* micro-interaction. Hover, press and the separator fade are all      */
+/* deliberately quieter than that move, so the control keeps reading   */
+/* as utility navigation.                                              */
+/*                                                                     */
+/* The source spec asks for 180ms / cubic-bezier(0.2, 0, 0, 1); both   */
+/* snap to the §4 scale — `base` is the indicator step the DS `Tabs`   */
+/* underline already travels on, and two indicators in one product     */
+/* moving at different speeds is the thing a scale exists to prevent.  */
+/* ================================================================== */
+.segmented-tabs-indicator {
+  transition:
+    transform var(--duration-base) var(--ease-standard),
+    width var(--duration-base) var(--ease-standard),
+    height var(--duration-base) var(--ease-standard);
+}
+
+/* Set for the first measurement and for container resizes: geometry the
+   user did not ask for arrives without motion. */
+.segmented-tabs-indicator[data-animate="false"] {
+  transition: none;
+}
+
+.segmented-tabs-indicator[data-visible="false"] {
+  opacity: 0;
+}
+
+/* Hover in at `fast`, out at `micro`. The timing that applies to a change
+   is the one on the *new* computed style, so hover-out lives on the
+   :not(:hover) side rather than being declared once on the base. */
+.segmented-tabs-segment {
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard),
+    transform var(--duration-micro) var(--ease-standard);
+}
+
+.segmented-tabs-segment:not(:hover) {
+  transition-duration: var(--duration-micro), var(--duration-fast),
+    var(--duration-micro);
+}
+
+@media (hover: hover) {
+  .segmented-tabs-segment[data-selected="false"][data-disabled="false"]:hover {
+    background-color: var(--color-muted);
+  }
+}
+
+/* Press darkens past hover and drops 1px. Only the unselected segments get
+   it: nudging the selected one would slide the label off the card it is
+   printed on, and the whole point of the card is that it holds still while
+   the label rides with it. Scaling the segment is out for the same reason
+   the spec rules it out — the row would breathe on every click. */
+.segmented-tabs-segment[data-selected="false"][data-disabled="false"]:active {
+  background-color: var(--color-surface-active);
+  transform: translateY(1px);
+}
+
+/* `button:not(:disabled)` in the cursor base outranks a plain
+   `cursor-not-allowed` utility, and these segments are aria-disabled rather
+   than natively disabled so a tooltip can still explain why. Class +
+   attribute wins the specificity race without touching the base rule. */
+.segmented-tabs-segment[data-disabled="true"] {
+  cursor: not-allowed;
+}
+
+.segmented-tabs-separator {
+  transition: opacity var(--duration-fast) var(--ease-standard);
+}
+
+.segmented-tabs-separator[data-hidden="true"] {
+  opacity: 0;
+}
+
+/* Reduced motion: the card stops travelling and fades in at its new home
+   instead. Two identical keyframe sets, alternated by the component, because
+   re-applying the same animation-name does not replay it. */
+@keyframes segmented-indicator-fade-a {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes segmented-indicator-fade-b {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .segmented-tabs-indicator {
+    transition: none;
+  }
+
+  .segmented-tabs-indicator[data-parity="0"] {
+    animation: segmented-indicator-fade-a var(--duration-micro)
+      var(--ease-entrance);
+  }
+
+  .segmented-tabs-indicator[data-parity="1"] {
+    animation: segmented-indicator-fade-b var(--duration-micro)
+      var(--ease-entrance);
+  }
+
+  .segmented-tabs-segment {
+    transition-duration: var(--duration-micro);
+  }
+
+  .segmented-tabs-segment[data-selected="false"][data-disabled="false"]:active {
+    transform: none;
+  }
+}
+
+/* ================================================================== */
+/* SEGMENTED PANEL SWAP                                                */
+/* The content under a SegmentedTabs. Out is a 2px lift, in is a 4px   */
+/* settle — no horizontal travel, because the segments are kinds of    */
+/* source rather than steps in a flow.                                 */
+/* Keep the exit in sync with EXIT_MS in SegmentedPanel.tsx.           */
+/* ================================================================== */
+.segmented-panel[data-phase="exiting"] {
+  opacity: 0;
+  transform: translateY(-2px);
+  transition:
+    opacity var(--duration-micro) var(--ease-exit),
+    transform var(--duration-micro) var(--ease-exit);
+  pointer-events: none;
+}
+
+.segmented-panel[data-phase="entering"] {
+  opacity: 0;
+  transform: translateY(4px);
+  pointer-events: none;
+}
+
+.segmented-panel[data-phase="idle"] {
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity var(--duration-base) var(--ease-entrance),
+    transform var(--duration-base) var(--ease-entrance);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .segmented-panel[data-phase] {
+    transform: none;
+    transition-duration: var(--duration-micro);
+  }
+}
+
+/* ================================================================== */
+/* WAVEFORM LOADER                                                     */
+/* Four bars breathing out of phase — a processing indicator for a     */
+/* wait with no measurable progress. It runs for as long as the wait   */
+/* does, which is why the loop is slower and shallower than anything   */
+/* on the §4 interaction scale: at 20px a quick pulse reads as a       */
+/* meter reacting to sound, and this reacts to nothing.                */
+/*                                                                     */
+/* The spec asks for `ease-in-out`; `ease-standard` is the "moving in  */
+/* place" curve and is the closest thing on the scale — near-symmetric */
+/* and already carrying every indicator in the library. It sits on the */
+/* `animation` shorthand rather than inside a keyframe stop, because a */
+/* stop's `animation-timing-function` cannot read a token: Chrome      */
+/* keeps the declaration and ignores it, and every segment silently    */
+/* goes linear (§4).                                                   */
+/* ================================================================== */
+
+/* 0.55 is the resting trough and 1 is the listed bar height, so the dip is
+   45% — the ceiling the spec sets on variation. The pulse takes the first
+   half of the loop and the bar waits out the second, which is what turns
+   four staggered pulses into one wave that sweeps and then breathes. */
+@keyframes waveform-loader-pulse {
+  0% {
+    transform: scaleY(0.55);
+  }
+  25% {
+    transform: scaleY(1);
+  }
+  50%,
+  100% {
+    transform: scaleY(0.55);
+  }
+}
+
+@keyframes waveform-loader-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+@keyframes waveform-loader-out {
+  to {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+/* Enter at `base`, leave at `fast` — the §4 pairing rule. */
+.waveform-loader {
+  animation: waveform-loader-in var(--duration-base) var(--ease-entrance) both;
+}
+
+.waveform-loader[data-phase="exiting"] {
+  animation: waveform-loader-out var(--duration-fast) var(--ease-exit) both;
+}
+
+/* `backwards` matters: without it a staggered bar sits at its full unanimated
+   height until its delay elapses, so the first cycle opens with three bars
+   dropping — a downward cascade before the upward wave has said anything. */
+.waveform-loader-bar {
+  transform-origin: center;
+  animation: waveform-loader-pulse var(--duration-ambient-loop)
+    var(--ease-standard) infinite backwards;
+}
+
+/* The stagger is what makes it travel left to right. Declared off one token
+   so the four offsets cannot drift apart. */
+.waveform-loader-bar:nth-child(2) {
+  animation-delay: var(--duration-ambient-stagger);
+}
+
+.waveform-loader-bar:nth-child(3) {
+  animation-delay: calc(var(--duration-ambient-stagger) * 2);
+}
+
+.waveform-loader-bar:nth-child(4) {
+  animation-delay: calc(var(--duration-ambient-stagger) * 3);
+}
+
+/* Reduced motion: the bars stop and sit at their resting heights, and the
+   indicator arrives and leaves on opacity alone. The loop is the part that
+   has to go — an indicator that runs for a whole minute is exactly the kind
+   of persistent movement the preference is asking about. Presence is on a
+   JS timer rather than `transitionend`, so dropping the scale here cannot
+   strand the unmount. */
+@media (prefers-reduced-motion: reduce) {
+  .waveform-loader-bar {
+    animation: none;
+  }
+
+  .waveform-loader {
+    animation-name: waveform-loader-fade-in;
+  }
+
+  .waveform-loader[data-phase="exiting"] {
+    animation-name: waveform-loader-fade-out;
+  }
+}
+
+@keyframes waveform-loader-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes waveform-loader-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+/* ── Accordion ──────────────────────────────────────────────────────────────
+   The one deliberate exception to §4's "don't animate layout": a disclosure
+   row genuinely gets taller, and no amount of `transform` makes the rows below
+   it move. `grid-template-rows` between `0fr` and `1fr` is the cheapest way to
+   do it that still lets the panel size itself to its own content — the
+   alternative is a measured pixel height in JS, which goes stale the moment
+   anything inside re-wraps.
+
+   Opening is panel-internal movement, so `moderate`; closing takes one step
+   less (`base`) per §4's pairing rule. The content fades on its own slightly
+   faster, so a panel on its way open reads as arriving rather than as being
+   unrolled. */
+.accordion-panel {
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--duration-base) var(--ease-exit);
+}
+
+.accordion-panel[data-open="true"] {
+  grid-template-rows: 1fr;
+  transition: grid-template-rows var(--duration-moderate) var(--ease-entrance);
+}
+
+.accordion-panel-inner {
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-exit);
+}
+
+.accordion-panel[data-open="true"] > .accordion-panel-inner {
+  opacity: 1;
+  transition: opacity var(--duration-base) var(--ease-entrance)
+    var(--duration-micro);
+}
+
+/* Collapsed → the chevron points at the row; open → it points into the panel
+   it opened. A rotation rather than two swapped glyphs, so it turns. */
+.accordion-chevron {
+  rotate: -90deg;
+  transition: rotate var(--duration-base) var(--ease-standard);
+}
+
+.accordion-chevron[data-open="true"] {
+  rotate: 0deg;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The row snaps to its size and the contents cross-fade. Dropping the fade
+     as well would leave the open panel with no arrival at all. */
+  .accordion-panel,
+  .accordion-panel[data-open="true"],
+  .accordion-chevron {
+    transition: none;
+  }
+
+  .accordion-panel-inner,
+  .accordion-panel[data-open="true"] > .accordion-panel-inner {
+    transition-duration: var(--duration-fast);
+    transition-delay: var(--duration-instant);
+  }
+}
+
+/* ── Slider ─────────────────────────────────────────────────────────────────
+   A native range input, restyled. The track has to be painted twice — once by
+   WebKit's `::-webkit-slider-runnable-track` and once by Gecko's
+   `::-moz-range-track` — because a selector one engine doesn't recognise
+   invalidates the whole rule, so the two can never share a block.
+
+   The fill is a hard-stop gradient at `--slider-progress` rather than a second
+   element: one paint, nothing to keep in sync, and it survives the thumb being
+   dragged past either end. */
+.slider {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 1.25rem;
+  background: transparent;
+  cursor: pointer;
+  outline: none;
+}
+
+.slider:disabled {
+  cursor: not-allowed;
+}
+
+.slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--color-brand) var(--slider-progress, 50%),
+    var(--color-line) var(--slider-progress, 50%)
+  );
+}
+
+.slider::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--color-brand) var(--slider-progress, 50%),
+    var(--color-line) var(--slider-progress, 50%)
+  );
+}
+
+/* The negative margin is what centres the thumb on a 4px track: WebKit aligns
+   the thumb's top edge to the track's, so it has to be pulled up by half the
+   difference. Gecko centres it already, which is why only one engine needs it. */
+.slider::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 1rem;
+  height: 1rem;
+  margin-top: -6px;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-brand);
+  box-shadow: 0 0 0 0 transparent;
+  transition: box-shadow var(--duration-base) var(--ease-standard);
+}
+
+.slider::-moz-range-thumb {
+  width: 1rem;
+  height: 1rem;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-brand);
+  box-shadow: 0 0 0 0 transparent;
+  transition: box-shadow var(--duration-base) var(--ease-standard);
+}
+
+.slider:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-brand) 24%, transparent);
+}
+
+.slider:focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-brand) 24%, transparent);
+}
+
+.slider:disabled::-webkit-slider-thumb {
+  background: var(--color-disabled-fg);
+}
+
+.slider:disabled::-moz-range-thumb {
+  background: var(--color-disabled-fg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The ring is a colour change, which §4 lets stand — but the thumb is under
+     the pointer while it grows, and that is the one place a grow reads as lag. */
+  .slider::-webkit-slider-thumb,
+  .slider::-moz-range-thumb {
+    transition: none;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* DotsLoader — one dot travelling through three                       */
+/* ------------------------------------------------------------------ */
+
+/* Shaped with stops, not per-stop easing (a keyframe can't read an easing
+   token): the dot swells into a pill, then hands off — dimming to the 70%
+   trail before settling at rest — so the eye follows one dot moving right
+   rather than three blinking. Animates `scale`, not `transform`, because
+   that's the property the resting `scale-y-*` class sets. */
+@keyframes dots-loader-travel {
+  0% {
+    scale: 1 1;
+    opacity: 0.3;
+  }
+  20% {
+    scale: 1 1.7;
+    opacity: 1;
+  }
+  45% {
+    scale: 1 1;
+    opacity: 0.7;
+  }
+  70%,
+  100% {
+    scale: 1 1;
+    opacity: 0.3;
+  }
+}
+
+/* One breath of the loop carries the dot across all three, so the offset is
+   a third of the loop — derived from the token, not re-typed. `backwards`
+   holds a waiting dot at rest rather than at its Figma frame. */
+.dots-loader-dot {
+  animation: dots-loader-travel var(--duration-ambient-loop) var(--ease-standard) infinite
+    backwards;
+}
+
+.dots-loader-dot:nth-child(2) {
+  animation-delay: calc(var(--duration-ambient-loop) / 3);
+}
+
+.dots-loader-dot:nth-child(3) {
+  animation-delay: calc(var(--duration-ambient-loop) * 2 / 3);
+}
+
+/* Reduced motion: the loop stops and the dots hold the Figma frame (pill,
+   70%, 30%) from their resting classes — still reads as "waiting". */
+@media (prefers-reduced-motion: reduce) {
+  .dots-loader-dot {
+    animation: none;
+  }
+}

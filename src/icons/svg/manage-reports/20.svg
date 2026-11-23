@@ -1,0 +1,13 @@
+<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g transform="translate(-80 -2)">
+<path d="M88.3335 13.6667C88.3335 14.1087 88.5091 14.5326 88.8217 14.8452C89.1342 15.1577 89.5581 15.3333 90.0002 15.3333C90.4422 15.3333 90.8661 15.1577 91.1787 14.8452C91.4912 14.5326 91.6668 14.1087 91.6668 13.6667C91.6668 13.2246 91.4912 12.8007 91.1787 12.4882C90.8661 12.1756 90.4422 12 90.0002 12C89.5581 12 89.1342 12.1756 88.8217 12.4882C88.5091 12.8007 88.3335 13.2246 88.3335 13.6667Z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M90 10.75V12" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M90 15.333V16.583" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M92.5259 12.208L91.4434 12.833" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M88.5565 14.5L87.4731 15.125" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M92.5 15.1696L91.4292 14.5254" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M88.5708 12.8082L87.5 12.1641" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M91.6665 4.5V7.83333C91.6665 8.05435 91.7543 8.26631 91.9106 8.42259C92.0669 8.57887 92.2788 8.66667 92.4998 8.66667H95.8332" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M94.1665 19.5H85.8332C85.3911 19.5 84.9672 19.3244 84.6547 19.0118C84.3421 18.6993 84.1665 18.2754 84.1665 17.8333V6.16667C84.1665 5.72464 84.3421 5.30072 84.6547 4.98816C84.9672 4.67559 85.3911 4.5 85.8332 4.5H91.6665L95.8332 8.66667V17.8333C95.8332 18.2754 95.6576 18.6993 95.345 19.0118C95.0325 19.3244 94.6085 19.5 94.1665 19.5Z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+</svg>

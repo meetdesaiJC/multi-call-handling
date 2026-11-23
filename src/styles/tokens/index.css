@@ -1,0 +1,9 @@
+/* Token entry point. The order reads primitives -> semantic ->        */
+/* components for humans; CSS custom properties resolve at use time,   */
+/* so a semantic may reference a primitive regardless of order.        */
+@import "./primitives.css";
+@import "./semantic.css";
+@import "./components.css";
+@import "./elevation.css";
+@import "./typography.css";
+@import "./motion.css";

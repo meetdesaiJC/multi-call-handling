@@ -1,0 +1,18 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="File page">
+<path id="Bkg" opacity="0.8" d="M48 88C70.0914 88 88 70.0914 88 48C88 25.9086 70.0914 8 48 8C25.9086 8 8 25.9086 8 48C8 70.0914 25.9086 88 48 88Z" fill="url(#paint0_linear_0_11)"/>
+<path id="Vector" d="M76 52.0645C76 59.7639 69.8469 66 62.25 66C60.1875 66 33.9938 66 31.8854 66C25.8698 66 21 61.0645 21 54.9677C21 49.6955 24.6437 45.2826 29.5365 44.191C31.4844 36.0503 38.7146 30 47.3542 30C53.6677 30 59.225 33.2284 62.525 38.1406C69.9958 38.28 76 44.4581 76 52.0645Z" fill="white"/>
+<g id="Group 1000001136">
+<circle id="Ellipse 670" cx="48" cy="63" r="10" fill="#2D72FF"/>
+<g id="arrow-narrow-down">
+<path id="Vector_2" d="M48 67.6667L48 58.3333M50.6667 61L48 58.3333L45.3333 61" stroke-linecap="round" stroke-linejoin="round" stroke="white"/>
+</g>
+</g>
+</g>
+<defs>
+<linearGradient id="paint0_linear_0_11" x1="7.98493" y1="8" x2="84.0984" y2="86.6083" gradientUnits="userSpaceOnUse">
+<stop stop-color="#F9FBFF"/>
+<stop offset="1" stop-color="#E7EAEF"/>
+</linearGradient>
+</defs>
+</svg>

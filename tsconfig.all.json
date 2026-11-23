@@ -1,0 +1,12 @@
+{
+  // Extends the base config to cover the prototypes as well as src/.
+  //
+  // Kept separate from tsconfig.json (and out of `npm run verify`) because it
+  // currently reports 25 pre-existing errors in prototype code — latent issues
+  // that Vite never surfaces, since it transpiles without type-checking.
+  // Wire this into `verify` once that count reaches zero.
+  //
+  //   npm run typecheck:all
+  "extends": "./tsconfig.json",
+  "include": ["src", "prototype-justcall-ai/src", "prototype-add-ons-flow/src"]
+}

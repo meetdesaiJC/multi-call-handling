@@ -1,0 +1,268 @@
+/* ================================================================== */
+/* COMPONENT TOKENS                                                   */
+/* For values no semantic role covers — a badge's pink, the dialer's   */
+/* navy. Each MUST reference a primitive or semantic token, never a    */
+/* new hex, or a palette change will skip it. See CLAUDE.md §3.        */
+/* ================================================================== */
+@theme {
+  /* AVATAR TOKENS                                                     */
+  /* Synced from Figma — Design System 2.0 "Avatars".                 */
+  /* Soft tag-color pairs for initials / placeholder fills, plus      */
+  /* presence-indicator colours for agent status.                     */
+  /* ---------------------------------------------------------------- */
+  --color-avatar-indigo-bg: var(--color-indigo-50); /* #eef4ff */
+  --color-avatar-indigo-fg: var(--color-indigo-700); /* #3538cd */
+  --color-avatar-purple-bg: var(--color-purple-50); /* #f4f3ff */
+  --color-avatar-purple-fg: var(--color-purple-700); /* #5925dc */
+  --color-avatar-pink-bg: var(--color-pink-50); /* #fdf2fa */
+  --color-avatar-pink-fg: var(--color-pink-700); /* #c11574 */
+  --color-avatar-orange-bg: #fff6ed;
+  --color-avatar-orange-fg: #c4320a;
+  --color-avatar-grey-bg: #f4f4f4;
+  --color-avatar-grey-fg: var(--color-gray-700); /* #344054 */
+  --color-avatar-bluegrey-bg: var(--color-bluegray-100); /* #eaecf5 */
+  --color-avatar-bluegrey-fg: var(--color-bluegray-700); /* #363f72 */
+
+  --color-status-available: var(--color-success); /* Available for call */
+  --color-status-ooo: var(--color-disabled-fg); /* Disabled / OOO */
+  --color-status-on-call: var(--color-red-500); /* On call */
+  --color-status-wrap-up: var(--color-warning); /* Wrap-up time */
+  --color-status-dnd: var(--color-error); /* DND */
+
+  /* ---------------------------------------------------------------- */
+  /* BADGE TOKENS                                                      */
+  /* Synced from Figma — Design System 2.0 "Badges".                  */
+  /* Solid states use primary fills; inverted/subtle states use the   */
+  /* tinted *-secondary surfaces with matching *-text colours.        */
+  /* ---------------------------------------------------------------- */
+  --color-success-text: #027a48; /* success/text — success badge label + indicator */
+  --color-warning-text: #b54708; /* warning/text — warning badge label + indicator */
+  --color-badge-grey-bg: var(--color-gray-100); /* accent/grey-bg — primary-inverted surface */
+  --color-badge-bluegrey-bg: var(--color-bluegray-100); /* accent/blue-grey-bg */
+  --color-badge-bluegrey-fg: var(--color-bluegray-700); /* indicator on blue-grey */
+  --color-badge-pink: #ee46bc; /* accent/pink-badge — "New" special badge */
+  --color-badge-beta: var(--color-gray-700); /* Inverse/Layer/02 — "Beta" special badge */
+  --color-badge-premium: #fec84b; /* icon/premium — crown icon fill */
+
+  /* ---------------------------------------------------------------- */
+  /* TAG TOKENS                                                        */
+  /* Synced from Figma — Design System 2.0 "Tags" (node 3464:126546). */
+  /* Soft fills for the documented color variants (Grey / Orange).    */
+  /* Other colors reuse avatar / status tokens.                       */
+  /* ---------------------------------------------------------------- */
+  --color-tag-grey-bg: #f4f4f4; /* accent/grey — user tags */
+  --color-tag-orange-bg: #fff6ed; /* accent/orange-bg */
+  --color-tag-orange-fg: #ec4a0a; /* accent/orange-text */
+
+  /* ---------------------------------------------------------------- */
+  /* TOOLTIP TOKENS                                                    */
+  /* Synced from Figma — Design System 2.0 "Tooltips" (3464:126547).  */
+  /* Dark surface reuses gray-900; inverse CTA is a lighter brand blue.*/
+  /* ---------------------------------------------------------------- */
+  --color-tooltip-dark-bg: var(--color-gray-900); /* Inverse/Layer/03 */
+  --color-tooltip-dark-fg: var(--color-white);
+  --color-tooltip-dark-muted: var(--color-disabled-fg); /* text/placeholder #98A2B3 */
+  --color-tooltip-dark-action: #4d8bff; /* Inverse/Button-primary */
+  /* Text links on the dark surface. The action blue is tuned as a button
+     fill under white text, so as body-sized link text it sinks into gray-900;
+     blue-400 holds ~8:1 against it and still reads as a link, not a label. */
+  --color-tooltip-dark-link: var(--color-blue-400);
+
+  /* ---------------------------------------------------------------- */
+  /* AI TOKENS                                                         */
+  /* The JustCall AI accent. Lives here rather than in a prototype so   */
+  /* every prototype and component resolves the same purple.            */
+  /* ---------------------------------------------------------------- */
+  --color-ai: #673bff;
+  --color-ai-surface: var(--color-purple-50); /* #f4f3ff */
+  --color-ai-border: var(--color-purple-200); /* #d9d6fe */
+  --color-ai-gradient-from: #3318ff; /* AI pill / icon gradient */
+  --color-ai-gradient-to: #b46dff;
+
+  /* ---------------------------------------------------------------- */
+  /* COACHING CUE TOKENS                                               */
+  /* One hue per live-coaching signal so agents can scan a stack by     */
+  /* category. Every one derives from an existing role or primitive —   */
+  /* these used to be hand-typed hexes in the prototype, which meant    */
+  /* changing --color-error left the coaching red behind.               */
+  /* ---------------------------------------------------------------- */
+  --color-coach-orange: var(--color-warning);
+  --color-coach-orange-surface: var(--color-warning-secondary);
+  --color-coach-orange-border: var(--color-warning-border);
+  --color-coach-orange-text: var(--color-warning-text);
+
+  --color-coach-purple: var(--color-purple-500);
+  --color-coach-purple-surface: var(--color-purple-50);
+  --color-coach-purple-border: var(--color-purple-200);
+  --color-coach-purple-text: var(--color-purple-700);
+
+  --color-coach-blue: var(--color-blue-500);
+  --color-coach-blue-surface: var(--color-blue-50);
+  --color-coach-blue-border: var(--color-blue-200);
+  --color-coach-blue-text: var(--color-blue-700);
+
+  --color-coach-teal: var(--color-teal-500);
+  --color-coach-teal-surface: var(--color-teal-50);
+  --color-coach-teal-border: var(--color-teal-200);
+  --color-coach-teal-text: var(--color-teal-700);
+
+  --color-coach-red: var(--color-error);
+  --color-coach-red-surface: var(--color-error-subtle);
+  --color-coach-red-border: var(--color-error-border);
+  --color-coach-red-text: var(--color-error-hover);
+
+  /* ---------------------------------------------------------------- */
+  /* CONVERSATION GUIDANCE TOKENS                                      */
+  /* The one-shot wash a newly generated guidance card wears while the  */
+  /* agent's eye finds it. Translucent on purpose: it is painted over   */
+  /* the card's own content, so an opaque tint would hide the text the  */
+  /* pulse is pointing at.                                              */
+  /* ---------------------------------------------------------------- */
+  --color-guidance-attention: color-mix(
+    in srgb,
+    var(--color-brand) 7%,
+    transparent
+  );
+
+  /* ---------------------------------------------------------------- */
+  /* CHART SERIES TOKENS                                               */
+  /* Calls-volume series colours. Both prototypes' dashboards drew the  */
+  /* same two hexes independently before this.                          */
+  /* ---------------------------------------------------------------- */
+  --color-chart-outbound: #1f8bc0;
+  --color-chart-inbound: #6c15e0;
+
+  /* ---------------------------------------------------------------- */
+  /* SIDENAV TOKENS                                                    */
+  /* The dark navigation rail is its own small theme — a gradient       */
+  /* surface with its own label, active-item and card colours that do   */
+  /* not map onto the light-UI semantics.                               */
+  /* ---------------------------------------------------------------- */
+  --color-sidenav-bg-from: var(--color-gray-900); /* #101828 */
+  --color-sidenav-bg-to: #111b2e;
+  --color-sidenav-accent: #196aff; /* active item border, balance top rule */
+  --color-sidenav-item-active: #111e36;
+  --color-sidenav-label: #b0b0b0; /* section headings */
+  --color-sidenav-card: #1c2838; /* credits card fill */
+  --color-sidenav-balance: #172848; /* usage-balance footer fill */
+
+  /* ---------------------------------------------------------------- */
+  /* HEADER TOKENS                                                     */
+  /* ---------------------------------------------------------------- */
+  --color-header-icon-hover: var(--color-gray-100); /* #f2f4f7 */
+  --color-notification-badge: var(--color-red-500); /* unread count dot */
+  --color-avatar-brand-bg: #2d72ff; /* header profile avatar fill */
+
+  /* ---------------------------------------------------------------- */
+  /* FEATURE-PROMO CANVAS TOKENS                                       */
+  /* The brand-tinted wash a feature promo draws its illustration on,   */
+  /* plus the graph-paper rule laid over it. The rule is deliberately   */
+  /* near the floor of visibility: it is texture behind a product       */
+  /* mockup, and anything stronger competes with the thing it frames.   */
+  /* ---------------------------------------------------------------- */
+  --color-promo-canvas-from: var(--color-brand-subtle);
+  --color-promo-canvas-mid: color-mix(
+    in srgb,
+    var(--color-brand-subtle) 50%,
+    var(--color-bluegray-50)
+  );
+  --color-promo-canvas-to: var(--color-background);
+  --color-promo-grid: color-mix(in srgb, var(--color-brand) 3.2%, transparent);
+
+  /* ---------------------------------------------------------------- */
+  /* IN-CALL SURFACE TOKENS                                            */
+  /* Dark surfaces used by the dialer and the notes formatting bar.     */
+  /* ---------------------------------------------------------------- */
+  --color-dialer-surface: #071532;
+  --color-editor-toolbar: #2f2f33;
+  /* A panel opened FROM the call bar — the keypad, the transfer picker, the
+     network read-out. Lifted a step off the bar's navy rather than repeating
+     it, or a panel hanging under the bar reads as more bar. */
+  --color-dialer-raised: color-mix(
+    in srgb,
+    var(--color-dialer-surface) 86%,
+    var(--color-white)
+  );
+  /* Rules and dividers inside those panels. Translucent, so one value works
+     on the raised surface and on the bar itself. */
+  --color-dialer-line: color-mix(in srgb, var(--color-white) 12%, transparent);
+  /* Mute and Hold engaged are painted straight from --color-error rather than
+     through a --color-dialer-interrupt alias. A component token that is only
+     ever `var(--color-error)` adds a name and nothing else — §3 reserves this
+     tier for values no semantic role covers, and "this is stopping something"
+     is exactly what error means. A second-order alias also stops re-resolving
+     when the role it points at is overridden, so the palette check in §3 goes
+     quiet on it while --color-error's own dependents still move. */
+
+  /* ---------------------------------------------------------------- */
+  /* CALL MONITOR TOKENS                                               */
+  /* Figma "Unified analytics" › monitor widget (4714:367107): the     */
+  /* inverse panel that floats over Live Monitoring while a supervisor  */
+  /* listens in. Figma's Inverse/Layer scale, so it sits on primitives. */
+  /* ---------------------------------------------------------------- */
+  --color-monitor-surface: var(--color-gray-900); /* Inverse/Layer/03 */
+  --color-monitor-line: var(--color-gray-700); /* Inverse/Layer/02 */
+  --color-monitor-banner: var(--color-gray-600); /* Inverse/Layer/disabled — "monitoring silently" strip */
+  /* Same Figma style as the dark tooltip's CTA (Inverse/Button-primary). */
+  --color-monitor-action: var(--color-tooltip-dark-action);
+
+  /* ---------------------------------------------------------------- */
+  /* PRODUCTION WEBPHONE TOKENS                                         */
+  /* Today's shipped dialer (PHP era), for prototypes that design on it */
+  /* rather than on the DS 2.0 dialer above. Every role sits on the     */
+  /* --color-legacy-* primitives, so the palette moves as one.          */
+  /* ---------------------------------------------------------------- */
+  --color-webphone-card: var(--color-white);
+  --color-webphone-input-bg: color-mix(in srgb, var(--color-legacy-gray-50) 50%, transparent);
+  --color-webphone-input-border: var(--color-legacy-gray-100);
+  --color-webphone-digit: var(--color-legacy-blue-300);
+  --color-webphone-letters: var(--color-legacy-gray-300);
+  --color-webphone-icon: var(--color-legacy-gray-400);
+  --color-webphone-label: var(--color-legacy-gray-600);
+  --color-webphone-link: var(--color-legacy-blue-500);
+  --color-webphone-select-border: var(--color-legacy-gray-200);
+  --color-webphone-backspace: color-mix(in srgb, var(--color-legacy-navy-600) 35%, transparent);
+  --color-webphone-call: var(--color-legacy-green-500);
+  --color-webphone-secondary-action: color-mix(in srgb, var(--color-legacy-gray-50) 80%, transparent);
+  --color-webphone-tabbar: var(--color-legacy-blue-600);
+  --color-webphone-tab-active: var(--color-legacy-navy-700);
+  --color-webphone-status-bg: color-mix(in srgb, var(--color-legacy-black) 57%, transparent);
+  --color-webphone-available: var(--color-legacy-lime-500);
+  /* The call screens. */
+  --color-webphone-live: var(--color-legacy-navy-800);
+  --color-webphone-live-strip: var(--color-legacy-navy-900);
+  --color-webphone-control-border: var(--color-legacy-gray-450);
+  --color-webphone-hangup: var(--color-legacy-red-600);
+  --color-webphone-record-dot: var(--color-legacy-red-200);
+  --color-webphone-signal: var(--color-legacy-lime-400);
+  --color-webphone-quality: var(--color-legacy-gold-400);
+  --color-webphone-incoming: var(--color-legacy-navy-850);
+  --color-webphone-incoming-muted: var(--color-legacy-gray-500);
+  --color-webphone-caller: var(--color-legacy-gray-250);
+  --color-webphone-line-strip: var(--color-legacy-navy-950);
+  --color-webphone-accept: var(--color-legacy-green-400);
+  --color-webphone-decline: var(--color-legacy-red-500);
+  /* Post-call wrap-up: a lifted header holding Dismiss, a darker call
+     summary, the rating row, then the note form on the live navy. */
+  --color-webphone-wrapup-header: color-mix(in srgb, var(--color-legacy-navy-800) 92%, var(--color-white));
+  --color-webphone-wrapup-summary: var(--color-legacy-navy-850);
+  --color-webphone-wrapup-rule: var(--color-legacy-navy-900);
+  --color-webphone-wrapup-field: var(--color-legacy-navy-850);
+  --color-webphone-ended: var(--color-legacy-red-400);
+  --color-webphone-star: var(--color-legacy-gray-600);
+  --color-webphone-save: var(--color-legacy-blue-500);
+  --color-webphone-placeholder: color-mix(in srgb, var(--color-white) 25%, transparent);
+
+  /* Radius */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+
+  /* Typography */
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, Helvetica, Arial, sans-serif;
+  /* The production webphone is set in Roboto, Thin included for the
+     number and the call clock. Loaded by the prototype that uses it. */
+  --font-webphone: "Roboto", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Helvetica, Arial, sans-serif;
+}

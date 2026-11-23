@@ -1,0 +1,6 @@
+@import "../../src/styles/globals.css";
+
+/* Tailwind's auto content-detection only scans this prototype's own
+   folder; point it at the library source too so classes used inside
+   DS components (e.g. GlobalHeader's flex/gap utilities) get generated. */
+@source "../../src";

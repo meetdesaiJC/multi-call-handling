@@ -1,0 +1,82 @@
+/* ================================================================== */
+/* SEMANTIC TOKENS                                                    */
+/* Role-based aliases: what a colour is FOR, not what it looks like.   */
+/* Each points at a primitive, so a palette change moves the whole UI. */
+/* Reach for these first — a component token is a last resort.         */
+/* Radius and the font family live here too.                          */
+/* ================================================================== */
+@theme {
+  --color-background: var(--color-white);
+  --color-foreground: var(--color-gray-900);
+  --color-muted: var(--color-gray-100);
+  --color-muted-foreground: var(--color-gray-500);
+  --color-border: var(--color-gray-300);
+  --color-ring: var(--color-blue-500);
+
+  --color-primary: var(--color-gray-900);
+  --color-primary-foreground: var(--color-white);
+
+  --color-secondary-bg: #f9fafb; /* Figma: "Gray / Secondary bg" */
+
+  --color-destructive: var(--color-error);
+  --color-destructive-foreground: var(--color-white);
+
+  /* ---------------------------------------------------------------- */
+  /* BUTTON / ACTION TOKENS                                            */
+  /* Synced from Figma — Design System 2.0 "Buttons".                 */
+  /* Brand = the primary action blue, shared across the 7 button      */
+  /* hierarchies (bg-brand, text-brand, border-brand, …).             */
+  /* ---------------------------------------------------------------- */
+  --color-brand: #004ce6; /* bg/brand-primary, text/brand, border/brand */
+  --color-brand-hover: #003bb3; /* bg/brand-primary-hover */
+  --color-brand-subtle: var(--color-blue-50); /* bg/brand-secondary — outline hover fill */
+
+  --color-line: #e4e7ec; /* border/primary — grey outline border */
+  --color-surface-hover: #f9fafb; /* bg/primary-hover — grey outline hover */
+  /* Pressed fill — one palette step past --color-muted, which is where
+     hover lands. Any control whose press has to read as "darker than
+     hover" without previewing a selected surface uses this. */
+  --color-surface-active: var(--color-gray-200);
+
+  --color-disabled-bg: #e4e7ec; /* bg/tertiary — disabled solid fill */
+  --color-disabled-fg: #98a2b3; /* text/disabled, icon/disabled */
+
+  --color-error: var(--color-red-600); /* error/primary */
+  --color-error-hover: var(--color-red-700); /* error/primary-hover */
+  --color-error-subtle: var(--color-red-50); /* error/secondary — error outline hover fill */
+  /* Danger *icons* sit one palette step brighter than --color-error, which is
+     the text/fill colour. Figma draws the logout glyph at red-500 while its
+     label is error (#d92d20) — kept distinct rather than flattened. */
+  --color-error-icon: var(--color-red-500);
+
+  --color-success: #12b76a; /* success/primary — "Saved" state */
+
+  /* ---------------------------------------------------------------- */
+  /* FORM CONTROL TOKENS                                               */
+  /* Synced from Figma — Design System 2.0 "Checkbox | Radio | Toggle" */
+  /* ---------------------------------------------------------------- */
+  --color-control-border: var(--color-disabled-fg); /* border/tertiary — resting checkbox/radio border, toggle off-track fill */
+  --color-control-disabled-bg: var(--color-gray-100); /* bg/disabled — disabled fill for checkbox/radio/toggle */
+
+  /* ---------------------------------------------------------------- */
+  /* STATUS / ALERT TOKENS                                             */
+  /* Synced from Figma — Design System 2.0 "Alerts".                  */
+  /* Each status has an icon colour (*-primary), a tinted surface      */
+  /* (*-secondary) and a matching border (*-border).                   */
+  /* ---------------------------------------------------------------- */
+  --color-info: var(--color-brand); /* info/primary — same blue as brand */
+  --color-info-secondary: #e6eeff; /* info/secondary — alert surface */
+  --color-info-border: #ccdeff; /* info/border */
+
+  --color-success-secondary: #ecfdf3; /* success/secondary — alert surface */
+  --color-success-border: #a6f4c5; /* success/border */
+
+  --color-warning: #f79009; /* warning/primary */
+  --color-warning-secondary: #fffaeb; /* warning/secondary — alert surface */
+  --color-warning-border: #fef0c7; /* warning/border */
+
+  --color-error-secondary: var(--color-error-subtle); /* error/secondary — alert surface */
+  --color-error-border: var(--color-red-100); /* error/border */
+
+  /* ---------------------------------------------------------------- */
+}

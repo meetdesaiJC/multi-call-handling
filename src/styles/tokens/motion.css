@@ -1,0 +1,76 @@
+/* ================================================================== */
+/* MOTION TOKENS                                                      */
+/* Durations and easing, named by the job a transition does rather    */
+/* than by its millisecond value. Mirrored in `src/lib/motion.ts` for */
+/* the presence timers that need the number in JS — change one,       */
+/* change the other. The Tokens/Motion story renders both.            */
+/* ================================================================== */
+@theme static {
+  --duration-instant: 0ms; /* reduced motion, deliberate snaps */
+  --duration-micro: 80ms; /* hover tint on a dense row */
+  --duration-fast: 120ms; /* small overlay exits, checks, chevrons */
+  --duration-base: 150ms; /* default — colour state, indicators, small enters */
+  --duration-moderate: 200ms; /* content swaps, panel-internal movement */
+  --duration-slow: 240ms; /* large travel — sidesheet, drawer */
+  /* Off the transition scale on purpose: a one-shot signal the eye is meant
+     to follow and lose interest in, not a state change. Only for an
+     attention pulse that plays once — never for an enter or an exit. */
+  --duration-emphasis: 600ms; /* one-shot attention pulse */
+  /* The same idea over a longer arc: a card that just landed in a live feed
+     has to stay findable while the agent finishes the sentence they were
+     reading, which `emphasis` is far too short for. Holds for the first
+     quarter and releases over the rest — 400ms found, 1200ms letting go.
+     No `@utility`: like the ambient loops below it only ever drives an
+     `animation`, and a `duration-settle` class would set
+     `transition-duration` instead — wrong in a way that looks right. */
+  --duration-settle: 1600ms; /* one-shot arrival highlight, hold then release */
+
+  /* Three curves, chosen by direction rather than by component. */
+  --ease-entrance: cubic-bezier(0, 0, 0.38, 0.9); /* arriving — fast, then settles */
+  --ease-exit: cubic-bezier(0.2, 0, 1, 0.9); /* leaving — slow, then accelerates away */
+  --ease-standard: cubic-bezier(0.2, 0, 0.38, 0.9); /* moving in place — an indicator sliding */
+
+  /* Ambient loops. Deliberately off the scale above: nothing here is a
+     response to a click, so the question is not "how far did it travel?"
+     but "how calm should a wait read?". A loop that ran at `slow` would
+     read as a meter reacting to something.
+
+     No `@utility` companions — the `duration-*` classes set
+     `transition-duration`, and these drive `animation`. Consume them as
+     `var()` from a rule in base.css. */
+  --duration-ambient-loop: 1200ms; /* one full breath of a processing indicator */
+  --duration-ambient-stagger: 100ms; /* offset between neighbours in a loop */
+}
+
+/* Tailwind themes `--ease-*` into `ease-*` utilities on its own, but there is
+   no duration namespace — `--duration-*` in `@theme` emits the variable and
+   no class. So the classes are declared by hand. Add a step above, add its
+   utility here, then grep the built CSS: a missing one fails silently as an
+   element that simply doesn't animate. */
+@utility duration-instant {
+  transition-duration: var(--duration-instant);
+}
+
+@utility duration-micro {
+  transition-duration: var(--duration-micro);
+}
+
+@utility duration-fast {
+  transition-duration: var(--duration-fast);
+}
+
+@utility duration-base {
+  transition-duration: var(--duration-base);
+}
+
+@utility duration-moderate {
+  transition-duration: var(--duration-moderate);
+}
+
+@utility duration-slow {
+  transition-duration: var(--duration-slow);
+}
+
+@utility duration-emphasis {
+  transition-duration: var(--duration-emphasis);
+}

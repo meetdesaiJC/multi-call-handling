@@ -1,0 +1,132 @@
+/* ================================================================== */
+/* PRIMITIVE COLOR TOKENS                                              */
+/* Synced from Figma — Design System 2.0.                             */
+/* These are the raw palette. Each generates Tailwind utilities,      */
+/* e.g. bg-blue-500, text-gray-900, border-bluegray-200.              */
+/* ================================================================== */
+@theme static {
+  --color-white: #ffffff;
+
+  /* Blue */
+  --color-blue-50: #eff8ff;
+  --color-blue-200: #b2ddff;
+  --color-blue-400: #53b1fd;
+  --color-blue-500: #2e90fa;
+  --color-blue-600: #1570ef;
+  --color-blue-700: #175cd3;
+  --color-blue-800: #1849a9;
+  --color-blue-900: #194185;
+
+  /* Indigo */
+  --color-indigo-25: #f5f8ff;
+  --color-indigo-50: #eef4ff;
+  --color-indigo-100: #e0eaff;
+  --color-indigo-200: #c7d7fe;
+  --color-indigo-300: #a4bcfd;
+  --color-indigo-400: #8098f9;
+  --color-indigo-500: #6172f3;
+  --color-indigo-600: #444ce7;
+  --color-indigo-700: #3538cd;
+  --color-indigo-800: #2d31a6;
+  --color-indigo-900: #2d3282;
+
+  /* Purple */
+  --color-purple-25: #fafaff;
+  --color-purple-50: #f4f3ff;
+  --color-purple-100: #ebe9fe;
+  --color-purple-200: #d9d6fe;
+  --color-purple-300: #bdb4fe;
+  --color-purple-400: #9b8afb;
+  --color-purple-500: #7a5af8;
+  --color-purple-600: #6938ef;
+  --color-purple-700: #5925dc;
+  --color-purple-800: #4a1fb8;
+  --color-purple-900: #3e1c96;
+
+  /* Pink */
+  --color-pink-50: #fdf2fa;
+  --color-pink-100: #fce7f6;
+  --color-pink-200: #fcceee;
+  --color-pink-300: #faa7e0;
+  --color-pink-400: #f670c7;
+  --color-pink-500: #dd2590; /* Figma: "Pink / Base" */
+  --color-pink-700: #c11574;
+  --color-pink-800: #9e165f;
+  --color-pink-900: #851651;
+
+  /* Blue Gray */
+  --color-bluegray-50: #f8f9fc;
+  --color-bluegray-100: #eaecf5;
+  --color-bluegray-200: #d5d9eb;
+  --color-bluegray-300: #afb5d9;
+  --color-bluegray-400: #717bbc;
+  --color-bluegray-500: #4e5ba6;
+  --color-bluegray-600: #3e4784;
+  --color-bluegray-700: #363f72;
+  --color-bluegray-800: #293056;
+  --color-bluegray-900: #101323;
+
+  /* Red */
+  --color-red-50: #fef3f2;
+  --color-red-100: #fee4e2;
+  --color-red-500: #f04438;
+  --color-red-600: #d92d20;
+  --color-red-700: #b42318;
+
+  /* Teal — coaching "pace" cue; no other surface uses it yet. */
+  --color-teal-50: #f0fdf9;
+  --color-teal-200: #99f6e0;
+  --color-teal-500: #15b79e;
+  --color-teal-700: #107569;
+
+  /* Gray */
+  --color-gray-25: #fcfcfd;
+  --color-gray-100: #f2f4f7;
+  --color-gray-200: #eaecf0;
+  --color-gray-300: #d0d5dd;
+  --color-gray-500: #667085;
+  --color-gray-600: #475467;
+  --color-gray-700: #344054;
+  --color-gray-800: #1d2939;
+  --color-gray-900: #101828;
+
+  /* Neutral */
+  --color-neutral-100: #f4f6fa;
+  --color-neutral-700: #696f8c;
+  --color-neutral-800: #474d66;
+  --color-neutral-900: #101840;
+
+  /* Production webphone (PHP era). Not Design System 2.0 — sampled from
+     Figma "Non-Calling Licenses" › Page 4 (121:13205), the dialer as it
+     ships today. Prototypes designed on today's dialer (multi-call) paint
+     from these, so the new palette doesn't leak into a screen that
+     predates it. Consumed only through the --color-webphone-* roles. */
+  --color-legacy-black: #000000;
+  --color-legacy-navy-950: #132029;
+  --color-legacy-navy-900: #14263c;
+  --color-legacy-navy-850: #162e48;
+  --color-legacy-navy-800: #16385b;
+  --color-legacy-navy-700: #274a75;
+  --color-legacy-navy-600: #145383;
+  --color-legacy-blue-600: #005ea6;
+  --color-legacy-blue-500: #2d99ec;
+  --color-legacy-blue-300: #82bafc;
+  --color-legacy-gray-600: #808088;
+  --color-legacy-gray-500: #9da5ad;
+  --color-legacy-gray-450: #adadad;
+  --color-legacy-gray-400: #bcb8b8;
+  --color-legacy-gray-300: #cecece;
+  --color-legacy-gray-250: #d2d2d2;
+  --color-legacy-gray-200: #dddddd;
+  --color-legacy-gray-100: #eef2f5;
+  --color-legacy-gray-50: #f3f7fa;
+  --color-legacy-green-500: #2aca8a;
+  --color-legacy-green-400: #1fc496;
+  --color-legacy-red-600: #ff0000;
+  --color-legacy-red-500: #ff4360;
+  --color-legacy-red-400: #d9534f;
+  --color-legacy-red-200: #f09696;
+  --color-legacy-lime-500: #00ff44;
+  --color-legacy-lime-400: #2dff2d;
+  --color-legacy-gold-400: #ffd700;
+}

@@ -1,0 +1,86 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "justcall-ai",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "port": 5679
+    },
+    {
+      "name": "justcall-ai-alt",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5680",
+        "--strictPort"
+      ],
+      "port": 5680
+    },
+    {
+      "name": "justcall-ai-third",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5681",
+        "--strictPort"
+      ],
+      "port": 5681
+    },
+    {
+      "name": "justcall-ai-fourth",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5682",
+        "--strictPort"
+      ],
+      "port": 5682
+    },
+    {
+      "name": "add-ons",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "proto:add-ons"
+      ],
+      "port": 5678
+    },
+    {
+      "name": "add-ons-alt",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "proto:add-ons",
+        "--",
+        "--port",
+        "5677",
+        "--strictPort"
+      ],
+      "port": 5677
+    },
+    {
+      "name": "storybook",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "storybook",
+        "--",
+        "--no-open"
+      ],
+      "port": 6006
+    }
+  ]
+}

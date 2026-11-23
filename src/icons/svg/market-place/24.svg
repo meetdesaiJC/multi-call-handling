@@ -1,0 +1,9 @@
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g transform="translate(-36 0)">
+<path d="M39 21H57" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M51 8C51 8.79565 51.3161 9.55871 51.8787 10.1213C52.4413 10.6839 53.2044 11 54 11C54.7956 11 55.5587 10.6839 56.1213 10.1213C56.6839 9.55871 57 8.79565 57 8V7L55 3H41L39 7V8C39 8.79565 39.3161 9.55871 39.8787 10.1213C40.4413 10.6839 41.2044 11 42 11C42.7956 11 43.5587 10.6839 44.1213 10.1213C44.6839 9.55871 45 8.79565 45 8M39 7H57M45 8V7M45 8C45 8.79565 45.3161 9.55871 45.8787 10.1213C46.4413 10.6839 47.2044 11 48 11C48.7956 11 49.5587 10.6839 50.1213 10.1213C50.6839 9.55871 51 8.79565 51 8M51 8V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M41 20.9996V10.8496" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M55 20.9996V10.8496" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M45 21V17C45 16.4696 45.2107 15.9609 45.5858 15.5858C45.9609 15.2107 46.4696 15 47 15H49C49.5304 15 50.0391 15.2107 50.4142 15.5858C50.7893 15.9609 51 16.4696 51 17V21" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+</svg>
