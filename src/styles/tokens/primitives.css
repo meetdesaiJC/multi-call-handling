@@ -103,6 +103,15 @@
      predates it. Consumed only through the --color-webphone-* roles. */
   --color-legacy-black: #000000;
   --color-legacy-navy-950: #132029;
+  /* Production queue panel (Figma 130:417): its scrim, border and wells. */
+  --color-legacy-navy-990: #021e35;
+  --color-legacy-navy-875: #19304d;
+  --color-legacy-navy-925: #082e44;
+  --color-legacy-slate-700: #424b53;
+  --color-legacy-slate-500: #6b8191;
+  --color-legacy-slate-300: #99a6b1;
+  --color-legacy-gray-350: #c1c3c5;
+  --color-legacy-green-600: #55c436;
   --color-legacy-navy-900: #14263c;
   --color-legacy-navy-850: #162e48;
   --color-legacy-navy-800: #16385b;
