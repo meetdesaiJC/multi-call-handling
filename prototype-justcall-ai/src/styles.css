@@ -2143,3 +2143,125 @@ button.call-bar-control[data-help="active"] {
     translate: none;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Production webphone — multi-call                                    */
+/* ------------------------------------------------------------------ */
+
+/* The second call's alert drops in from the notch: a short travel, so a
+   panel-internal step rather than a full sheet's. */
+@keyframes webphone-alert-in {
+  from {
+    opacity: 0;
+    translate: 0 -8px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+.webphone-alert-in {
+  animation: webphone-alert-in var(--duration-moderate) var(--ease-entrance) both;
+}
+
+/* The transfer sheet rises over the call: large travel, a drawer's step. */
+@keyframes webphone-sheet-in {
+  from {
+    translate: 0 100%;
+  }
+  to {
+    translate: 0 0;
+  }
+}
+.webphone-sheet-in {
+  animation: webphone-sheet-in var(--duration-slow) var(--ease-entrance) both;
+}
+
+/* The ringing badge breathes while the call waits — an ambient loop, so it
+   runs on the loop token rather than the transition scale. */
+@keyframes webphone-ring-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-webphone-accept) 45%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 10px color-mix(in srgb, var(--color-webphone-accept) 0%, transparent);
+  }
+}
+.webphone-ring-pulse {
+  animation: webphone-ring-pulse var(--duration-ambient-loop) var(--ease-exit) infinite;
+}
+
+/* Swap: the caller now talking drops in from the held bar above; the one
+   left behind rises into the bar from below. Panel-internal travel, so the
+   moderate step; both arrive, so both decelerate. */
+@keyframes webphone-swap-in {
+  from {
+    opacity: 0;
+    translate: 0 -14px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+.webphone-swap-in {
+  animation: webphone-swap-in var(--duration-moderate) var(--ease-entrance) both;
+}
+@keyframes webphone-held-in {
+  from {
+    opacity: 0;
+    translate: 0 10px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+.webphone-held-in {
+  animation: webphone-held-in var(--duration-moderate) var(--ease-entrance) both;
+}
+
+/* Merge: each caller slides down into the conference list, staggered from
+   the element's inline animation-delay. */
+.webphone-merge-in {
+  animation: webphone-swap-in var(--duration-moderate) var(--ease-entrance) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Swap and merge keep their fade and lose their travel. */
+  @keyframes webphone-swap-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes webphone-held-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Travel becomes a fade; the pulse holds still. */
+  @keyframes webphone-alert-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  .webphone-sheet-in {
+    animation-name: webphone-alert-in;
+    animation-duration: var(--duration-base);
+  }
+  .webphone-ring-pulse {
+    animation: none;
+  }
+}

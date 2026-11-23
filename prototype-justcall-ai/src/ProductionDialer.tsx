@@ -8,25 +8,40 @@ import {
   WebphoneCallEnd,
   WebphoneCaret,
   WebphoneClose,
+  WebphoneCollapse,
   WebphoneConstruct,
-  WebphoneDialpad,
-  WebphoneExpand,
   WebphoneForum,
   WebphoneHelp,
-  WebphoneMic,
-  WebphoneNotes,
   WebphonePause,
-  WebphonePersonAdd,
-  WebphonePersonAddOutline,
-  WebphoneStar,
+  WebphonePerson,
   WebphoneSwap,
-  WebphoneVoicemail,
 } from "./icons/WebphoneIcons";
 import flagSmall from "./assets/legacy-dialer/flag-us-small.png";
 import flagLarge from "./assets/legacy-dialer/flag-us-32.png";
 import chevronBlue from "./assets/legacy-dialer/chevron-down.svg";
 import messageBubbles from "./assets/legacy-dialer/message.svg";
 import callerAvatar from "./assets/legacy-dialer/caller-avatar.png";
+import {
+  ConferenceScreen,
+  ConsultScreen,
+  HeldScreen,
+  LiveScreen,
+  CrmPill,
+  MissedNotice,
+  RingingAlert,
+} from "./WebphoneCallScreens";
+import { WrapUpScreen } from "./WebphoneWrapUp";
+import { useCallWaitingTone } from "./useCallWaitingTone";
+import {
+  INITIAL_STATE,
+  QUEUE_CALL_LIMIT,
+  LINES,
+  callerLabel,
+  reducer,
+  useNow,
+  type Call,
+  type Caller,
+} from "./webphoneCalls";
 
 /**
  * The webphone as it ships today — the PHP-era dialer, not the DS 2.0 one in
@@ -43,11 +58,45 @@ import callerAvatar from "./assets/legacy-dialer/caller-avatar.png";
  */
 
 /** The line the account calls out on — production's "Call via" default. */
-const OWN_LINE = "(712) 625-7333";
-/** Who rings when the demo plays an inbound call. */
-const INBOUND_CALLER = "+441341610153";
+const OWN_LINE = LINES.sales.number;
+/** Who rings when the demo plays an inbound call on an idle phone. */
+const FIRST_CALLER: Caller = {
+  number: "+441341610153",
+  line: LINES.sales,
+  location: "London, UK",
+  crm: { id: "hubspot", contact: "+441341610153" },
+};
 /** Long enough to see the keypad first, so the call lands on top of it. */
 const INBOUND_ARRIVES_MS = 1500;
+/**
+ * The multi-call moment itself: a second caller, on the other line, a few
+ * seconds into the first call — long enough to have settled into it.
+ */
+const SECOND_CALLER: Caller = {
+  name: "Marcus Chen",
+  number: "+1 (628) 555-0199",
+  line: LINES.support,
+  location: "San Francisco, US",
+  crm: { id: "hubspot", contact: "Marcus Chen" },
+};
+const SECOND_CALL_AFTER_MS = 6000;
+/**
+ * Queue approach only: once the rep has connected the first queued caller,
+ * someone else joins the queue. Connecting them too leaves the rep talking to
+ * one caller with two on hold.
+ */
+const THIRD_CALLER: Caller = {
+  name: "Priya Raman",
+  number: "+1 (415) 555-0163",
+  line: LINES.support,
+  location: "Oakland, US",
+  crm: { id: "salesforce", contact: "Priya Raman" },
+};
+const THIRD_CALL_AFTER_MS = 6000;
+/** How long the second call rings this rep before the queue moves it on. */
+const RING_TIMEOUT_MS = 20000;
+/** How long "went back to the queue" stays up. */
+const MISSED_NOTICE_MS = 4000;
 
 const KEYS: { digit: string; letters?: string }[] = [
   { digit: "1" },
@@ -64,36 +113,266 @@ const KEYS: { digit: string; letters?: string }[] = [
   { digit: "#" },
 ];
 
-type Phase =
-  | { kind: "idle" }
-  | { kind: "incoming"; number: string }
-  | { kind: "live"; number: string; inbound: boolean; startedAt: number }
-  | { kind: "wrapup"; number: string; endedAt: number };
-
 export interface ProductionDialerProps {
   /** Play an inbound call shortly after the phone opens. */
   ringOnOpen?: boolean;
+  /**
+   * Ring a second caller a few seconds into the first call, once per call.
+   * On by default: it is what this prototype exists to show.
+   */
+  secondCallDemo?: boolean;
+  /**
+   * How the second caller announces itself — the two approaches under review.
+   * `alert` drops a card over the call with Answer and a countdown; `queue`
+   * keeps production's quiet green "caller in queue" chip, which opens the
+   * same card only when the rep asks for it.
+   */
+  secondCallStyle?: SecondCallStyle;
   className?: string;
 }
 
-export function ProductionDialer({ ringOnOpen = false, className }: ProductionDialerProps) {
+export type SecondCallStyle = "alert" | "queue";
+
+export function ProductionDialer({
+  ringOnOpen = false,
+  secondCallDemo = true,
+  secondCallStyle = "alert",
+  className,
+}: ProductionDialerProps) {
+  const queueStyle = secondCallStyle === "queue";
   const [number, setNumber] = React.useState("");
-  const [phase, setPhase] = React.useState<Phase>({ kind: "idle" });
+  /** Queue style only: whether the rep has opened the chip to see who waits. */
+  const [queueOpen, setQueueOpen] = React.useState(false);
+  /**
+   * Queue style only: callers waiting in the queue. They are not ringing this
+   * rep, so they live outside the call reducer — and unlike a ring, a queued
+   * caller can wait even while both of the rep's lines are busy.
+   */
+  const [queued, setQueued] = React.useState<QueuedCaller[]>([]);
+  /**
+   * Queue style only: the caller the rep pressed Connect on. Production then
+   * offers them like any inbound call — full screen, Accept or Decline — so
+   * the rep sees who it is before their current call goes on hold.
+   */
+  const [offered, setOffered] = React.useState<QueuedCaller | null>(null);
+  /** Queue style only: how many callers the rep has pulled from the queue. */
+  const [connectedFromQueue, setConnectedFromQueue] = React.useState(0);
+  const [state, dispatch] = React.useReducer(reducer, INITIAL_STATE);
+  const now = useNow();
+  const at = () => Date.now();
+
+  const focused = state.calls.find((c) => c.id === state.focusedId) ?? null;
+  const others = state.calls.filter((c) => c.id !== state.focusedId);
+  const held = others[0] ?? null;
 
   React.useEffect(() => {
     if (!ringOnOpen) return;
     const timer = window.setTimeout(
-      () => setPhase({ kind: "incoming", number: INBOUND_CALLER }),
+      () => dispatch({ type: "offer", caller: FIRST_CALLER }),
       INBOUND_ARRIVES_MS
     );
     return () => window.clearTimeout(timer);
   }, [ringOnOpen]);
 
+  // One demo ring per stretch of calls: it plays a few seconds into the first
+  // call and not again until the phone is idle, so the caller who rang never
+  // rings a second time once they are the only one left on the line.
+  const demoRung = React.useRef(false);
+  const firstCallId = state.calls[0]?.id;
+  const idle = state.calls.length === 0;
+  React.useEffect(() => {
+    if (!idle) return;
+    demoRung.current = false;
+    // A fresh stretch of calls starts the demo story over.
+    setQueued([]);
+    setConnectedFromQueue(0);
+    setOffered(null);
+  }, [idle]);
+  React.useEffect(() => {
+    if (!secondCallDemo || !firstCallId || demoRung.current) return;
+    const timer = window.setTimeout(() => {
+      demoRung.current = true;
+      if (queueStyle) {
+        setQueued((list) => [...list, { ...SECOND_CALLER, arrivedAt: Date.now() }]);
+      } else {
+        dispatch({ type: "ring", caller: SECOND_CALLER, at: Date.now() });
+      }
+    }, SECOND_CALL_AFTER_MS);
+    return () => window.clearTimeout(timer);
+  }, [secondCallDemo, firstCallId, queueStyle]);
+
+  // Queue style: the next caller joins a few seconds after the rep connects
+  // the first one — once per stretch, like the first.
+  React.useEffect(() => {
+    if (!queueStyle || !secondCallDemo || connectedFromQueue !== 1) return;
+    const timer = window.setTimeout(
+      () => setQueued((list) => [...list, { ...THIRD_CALLER, arrivedAt: Date.now() }]),
+      THIRD_CALL_AFTER_MS
+    );
+    return () => window.clearTimeout(timer);
+  }, [queueStyle, secondCallDemo, connectedFromQueue]);
+
+  const offerQueued = (caller: QueuedCaller) => {
+    setQueued((list) => list.filter((c) => c !== caller));
+    setOffered(caller);
+    setQueueOpen(false);
+  };
+  const acceptOffered = () => {
+    if (!offered) return;
+    const { arrivedAt: _arrivedAt, ...caller } = offered;
+    dispatch({ type: "connect", caller, at: at() });
+    setOffered(null);
+    setConnectedFromQueue((count) => count + 1);
+  };
+  // Declining doesn't drop the caller: they go back to their place in the
+  // queue, wait time intact, for this rep or the next one.
+  // "End current call & connect": the call the rep is talking on ends (its
+  // wrap-up waits) and the queued caller takes its place.
+  const endAndAcceptOffered = () => {
+    if (!offered) return;
+    dispatch({ type: "hang-up", at: at() });
+    acceptOffered();
+  };
+  // "Back to queue": nothing was decided, so the rep lands back on the list
+  // they pressed Connect from, the caller in their old place.
+  const backToQueue = () => {
+    declineOffered();
+    setQueueOpen(true);
+  };
+  const declineOffered = () => {
+    if (!offered) return;
+    setQueued((list) =>
+      [...list, offered].sort((a, b) => a.arrivedAt - b.arrivedAt)
+    );
+    setOffered(null);
+  };
+  /** The call the rep is talking on right now, if any — the one a choice affects. */
+  const talking = focused && focused.heldSince === null ? focused : null;
+  const linesFull = state.calls.length >= QUEUE_CALL_LIMIT || state.conference;
+
+  // Unanswered, the call follows the existing queue logic: it stops ringing
+  // here and the queue carries on with it.
+  React.useEffect(() => {
+    if (!state.ringing) return;
+    const timer = window.setTimeout(
+      () => dispatch({ type: "ring-timeout", at: Date.now() }),
+      RING_TIMEOUT_MS
+    );
+    return () => window.clearTimeout(timer);
+  }, [state.ringing]);
+
+  React.useEffect(() => {
+    if (!state.missed) return;
+    const timer = window.setTimeout(() => dispatch({ type: "clear-missed" }), MISSED_NOTICE_MS);
+    return () => window.clearTimeout(timer);
+  }, [state.missed]);
+
+  // Only a ring sounds: the queue chip is production's passive signal.
+  useCallWaitingTone(state.ringing !== null);
+
   const startCall = () => {
     const dialled = number.trim();
     if (!dialled) return;
-    setPhase({ kind: "live", number: dialled, inbound: false, startedAt: Date.now() });
+    dispatch({ type: "start", caller: { number: dialled, line: LINES.sales }, inbound: false, at: at() });
   };
+
+  const consultCall = state.consult
+    ? state.calls.find((c) => c.id === state.consult?.callId) ?? null
+    : null;
+  const wrapUp = state.wrapUps[0] ?? null;
+
+  let screen: React.ReactNode;
+  if (state.calls.length === 0 && state.offer) {
+    screen = (
+      <IncomingScreen
+        number={state.offer.number}
+        name={state.offer.name}
+        location={state.offer.location}
+        crm={state.offer.crm}
+        onAccept={() =>
+          state.offer &&
+          dispatch({ type: "start", caller: state.offer, inbound: true, at: at() })
+        }
+        onDecline={() => dispatch({ type: "decline-offer" })}
+      />
+    );
+  } else if (state.conference) {
+    screen = (
+      <ConferenceScreen
+        calls={state.calls}
+        now={now}
+        onRemove={(id) => dispatch({ type: "remove-participant", id, at: at() })}
+        onLeave={() => dispatch({ type: "leave-conference", at: at() })}
+      />
+    );
+  } else if (state.consult && consultCall) {
+    screen = (
+      <ConsultScreen
+        target={state.consult.target}
+        startedAt={state.consult.startedAt}
+        transferring={consultCall}
+        otherHeld={state.calls.find((c) => c.id !== consultCall.id) ?? null}
+        now={now}
+        onComplete={() => dispatch({ type: "complete-consult", at: at() })}
+        onCancel={() => dispatch({ type: "cancel-consult", at: at() })}
+      />
+    );
+  } else if (focused) {
+    screen = (
+      <LiveScreen
+        call={focused}
+        held={others}
+        now={now}
+        onHoldToggle={() => dispatch({ type: "toggle-hold", at: at() })}
+        onMute={() => dispatch({ type: "toggle-mute" })}
+        onRecord={() => dispatch({ type: "toggle-record" })}
+        onSwap={(id) => dispatch({ type: "resume", id, at: at() })}
+        onMerge={() => dispatch({ type: "merge", at: at() })}
+        onHangUp={() => dispatch({ type: "hang-up", at: at() })}
+        onTransfer={(target) => dispatch({ type: "transfer", target, at: at() })}
+        onConsult={(target) => dispatch({ type: "consult", target, at: at() })}
+      />
+    );
+  } else if (wrapUp) {
+    // A call just ended. Its wrap-up comes first; a caller still on hold sits
+    // on top of it with Resume, one click away.
+    screen = (
+      <WrapUpScreen
+        key={wrapUp.id}
+        wrapUp={wrapUp}
+        held={held}
+        now={now}
+        queued={state.wrapUps.length - 1}
+        onDraft={(draft) => dispatch({ type: "draft", id: wrapUp.id, draft })}
+        onDone={() => {
+          if (state.calls.length === 0 && state.wrapUps.length === 1) setNumber("");
+          dispatch({ type: "done", id: wrapUp.id });
+        }}
+        onResumeHeld={() => held && dispatch({ type: "resume", id: held.id, at: at() })}
+      />
+    );
+  } else if (held) {
+    screen = (
+      <HeldScreen
+        call={held}
+        now={now}
+        onResume={() => dispatch({ type: "resume", id: held.id, at: at() })}
+        onEnd={() => {
+          dispatch({ type: "resume", id: held.id, at: at() });
+          dispatch({ type: "hang-up", at: at() });
+        }}
+      />
+    );
+  } else {
+    screen = (
+      <IdleScreen
+        number={number}
+        onNumberChange={setNumber}
+        onDigit={(digit) => setNumber((value) => value + digit)}
+        onCall={startCall}
+      />
+    );
+  }
 
   return (
     // Production's card: 365 wide, the body a fixed 559 over a 52px tab bar.
@@ -104,47 +383,67 @@ export function ProductionDialer({ ringOnOpen = false, className }: ProductionDi
       )}
     >
       <div className="relative h-[559px] w-full">
-        {phase.kind === "idle" ? (
-          <IdleScreen
-            number={number}
-            onNumberChange={setNumber}
-            onDigit={(digit) => setNumber((value) => value + digit)}
-            onCall={startCall}
+        {screen}
+        {/* The second call is a notification over whatever the rep is doing,
+            never a takeover: the call they are on keeps its whole screen. */}
+        {queueStyle && queued.length > 0 ? (
+          <>
+            <QueueChip
+              // Keyed on the count so a new arrival plays the drop-in again.
+              key={queued.length}
+              count={queued.length}
+              open={queueOpen}
+              onToggle={() => setQueueOpen((value) => !value)}
+            />
+            {queueOpen ? (
+              <QueuePanel
+                callers={queued}
+                now={now}
+                linesFull={linesFull}
+                onConnect={offerQueued}
+                onClose={() => setQueueOpen(false)}
+              />
+            ) : null}
+          </>
+        ) : null}
+        {offered ? (
+          // Over the live call, like production's own incoming screen: the
+          // call underneath keeps running until the rep accepts.
+          <div className="absolute inset-0 z-30">
+            <IncomingScreen
+              number={offered.number}
+              name={offered.name}
+              lineNumber={offered.line.number}
+              title="Connect with"
+              location={offered.location}
+              crm={offered.crm}
+              onAccept={acceptOffered}
+              onDecline={declineOffered}
+              choices={
+                <QueueOfferChoices
+                  current={talking}
+                  onHoldAndConnect={acceptOffered}
+                  onEndAndConnect={endAndAcceptOffered}
+                  onBack={backToQueue}
+                />
+              }
+            />
+          </div>
+        ) : null}
+        {state.ringing ? (
+          <RingingAlert
+            caller={state.ringing}
+            current={focused && focused.heldSince === null ? focused : null}
+            secondsLeft={Math.max(
+              1,
+              Math.ceil((state.ringing.arrivedAt + RING_TIMEOUT_MS - now) / 1000)
+            )}
+            onAnswer={() => dispatch({ type: "answer-ringing", at: at() })}
+            onDecline={() => dispatch({ type: "decline-ringing", at: at() })}
           />
-        ) : phase.kind === "incoming" ? (
-          <IncomingScreen
-            number={phase.number}
-            onAccept={() =>
-              setPhase({
-                kind: "live",
-                number: phase.number,
-                inbound: true,
-                startedAt: Date.now(),
-              })
-            }
-            onDecline={() => setPhase({ kind: "idle" })}
-          />
-        ) : phase.kind === "live" ? (
-          <LiveScreen
-            key={phase.startedAt}
-            number={phase.number}
-            startedAt={phase.startedAt}
-            onHangup={() =>
-              setPhase({ kind: "wrapup", number: phase.number, endedAt: Date.now() })
-            }
-          />
-        ) : (
-          // Saving and dismissing both land on a clean keypad: the call is
-          // logged either way, and the next act is dialling again.
-          <WrapUpScreen
-            key={phase.endedAt}
-            number={phase.number}
-            onDone={() => {
-              setNumber("");
-              setPhase({ kind: "idle" });
-            }}
-          />
-        )}
+        ) : state.missed ? (
+          <MissedNotice caller={state.missed} />
+        ) : null}
         <StatusTab />
       </div>
       <TabBar />
@@ -159,10 +458,299 @@ export function ProductionDialer({ ringOnOpen = false, className }: ProductionDi
 /** The notch hanging off the top edge: the agent's availability. */
 function StatusTab() {
   return (
-    <div className="absolute top-0 left-1/2 flex h-[21px] w-[102px] -translate-x-1/2 items-center justify-center gap-[9px] rounded-b-[13px] bg-webphone-status-bg pr-[5px]">
+    // Above the incoming screen (as production draws it), below the queue
+    // list's scrim (as Figma 130:417 draws it).
+    <div className="absolute top-0 left-1/2 z-[35] flex h-[21px] w-[102px] -translate-x-1/2 items-center justify-center gap-[9px] rounded-b-[13px] bg-webphone-status-bg pr-[5px]">
       <span className="size-2 rounded-full bg-webphone-available shadow-webphone-glow" />
       <span className="text-[10px] leading-[14px] text-white">Available</span>
     </div>
+  );
+}
+
+/**
+ * Production's queue signal, kept as it ships: a green tab off the card's
+ * top-left corner, tucked under the availability notch. It is the only thing
+ * that changes on the call screen until the rep chooses to look.
+ */
+function QueueChip({
+  count,
+  open,
+  onToggle,
+}: {
+  count: number;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-expanded={open}
+      onClick={onToggle}
+      // Figma 130:17, to the pixel: 106 × 22, square but for the one corner
+      // that curves away from the notch.
+      className="webphone-alert-in absolute top-0 left-0 z-20 flex h-[22px] w-[106px] items-center justify-center rounded-[1px] rounded-br-[13px] bg-webphone-queue text-[10px] leading-[18px] font-bold text-white shadow-webphone-queue outline-none"
+    >
+      {count} caller{count === 1 ? "" : "s"} in queue
+    </button>
+  );
+}
+
+/** Production's queue clock: minutes and seconds, then "min". */
+function formatWait(ms: number) {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${pad(Math.floor(total / 60))}:${pad(total % 60)} min`;
+}
+
+type QueuedCaller = Caller & { arrivedAt: number };
+
+/**
+ * What the chip opens — production's queue list, from Figma 130:417. It lays
+ * a navy scrim over the call (blurred, so the rep keeps their place without
+ * reading it), then one block per JustCall number: its wait times and the
+ * callers waiting on it, each with Connect. The handle folds it away.
+ */
+function QueuePanel({
+  callers,
+  now,
+  linesFull,
+  onConnect,
+  onClose,
+}: {
+  callers: QueuedCaller[];
+  now: number;
+  /** Both of the rep's lines are busy: nobody can be connected yet. */
+  linesFull: boolean;
+  onConnect: (caller: QueuedCaller) => void;
+  onClose: () => void;
+}) {
+  // Production groups the queue by the number that was called.
+  const groups = new Map<string, QueuedCaller[]>();
+  for (const caller of callers) {
+    groups.set(caller.line.number, [...(groups.get(caller.line.number) ?? []), caller]);
+  }
+
+  return (
+    <div
+      role="dialog"
+      aria-label="Callers in queue"
+      className="webphone-alert-in absolute inset-0 z-40 flex flex-col bg-webphone-queue-scrim backdrop-blur-[7px]"
+    >
+      <div className="flex h-full flex-col overflow-y-auto border-t-[20px] border-webphone-queue-edge pb-[35px] text-white">
+        {[...groups].map(([lineNumber, group]) => {
+          const waits = group.map((c) => now - c.arrivedAt);
+          const stats = [
+            { label: "Max. Wait Time:", value: formatWait(Math.max(...waits)) },
+            {
+              label: "Avg. Wait Time:",
+              value: formatWait(waits.reduce((sum, w) => sum + w, 0) / waits.length),
+            },
+          ];
+          return (
+            <section key={lineNumber}>
+              <p className="bg-webphone-queue-header p-[5px] text-[12px] leading-[17px] font-medium tracking-[0.4px]">
+                JustCall Number: 1{lineNumber.replace(/\D/g, "")}
+              </p>
+
+              <div className="flex h-[65px] items-center bg-webphone-queue-stats pb-[5px]">
+                {stats.map((stat, index) => (
+                  <React.Fragment key={stat.label}>
+                    {index > 0 ? <span className="h-[60px] w-px bg-webphone-queue-muted" /> : null}
+                    <span className="flex flex-1 flex-col items-center px-[10px]">
+                      <span className="text-[11px] leading-[16px] text-webphone-queue-muted">
+                        {stat.label}
+                      </span>
+                      <span className="pt-[6px] text-[18.2px] leading-[26px] tabular-nums">
+                        {stat.value}
+                      </span>
+                    </span>
+                  </React.Fragment>
+                ))}
+              </div>
+
+              <p className="bg-webphone-queue-section px-[15px] py-[5px] text-[13px] leading-[19px] text-webphone-queue-section-fg">
+                Callers in Queue
+              </p>
+              {linesFull ? (
+                // Not in the Figma: the one thing production never had to say,
+                // because production never let a rep hold two calls.
+                <p className="px-[15px] pt-[7px] text-[11px] leading-[16px] text-webphone-queue-section-fg">
+                  You're on {QUEUE_CALL_LIMIT} calls. End or transfer one to connect.
+                </p>
+              ) : null}
+
+              <div className="flex flex-col gap-[7px] px-[7px] pt-[7px]">
+                {group.map((caller) => (
+                  <QueueRow
+                    key={caller.number}
+                    caller={caller}
+                    wait={formatWait(now - caller.arrivedAt)}
+                    disabled={linesFull}
+                    onConnect={() => onConnect(caller)}
+                  />
+                ))}
+              </div>
+            </section>
+          );
+        })}
+      </div>
+
+      <button
+        type="button"
+        aria-label="Close queue"
+        onClick={onClose}
+        className="absolute bottom-0 left-1/2 flex h-[20px] w-[100px] -translate-x-1/2 items-start justify-center overflow-visible rounded-t-[22px] bg-webphone-queue-handle shadow-webphone-button outline-none"
+      >
+        <WebphoneCollapse className="-mt-[6px] size-[29px] text-white" />
+      </button>
+    </div>
+  );
+}
+
+function QueueRow({
+  caller,
+  wait,
+  disabled,
+  onConnect,
+}: {
+  caller: QueuedCaller;
+  wait: string;
+  disabled: boolean;
+  onConnect: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between rounded-[6px] bg-webphone-queue-card px-[15px] py-[10px]">
+      <span className="flex items-center gap-[15px]">
+        <span className="-m-[5px] flex size-[35px] shrink-0 items-center justify-center rounded-full bg-white text-webphone-queue-avatar-fg">
+          <WebphonePerson className="size-[18px]" />
+        </span>
+        <span className="flex flex-col">
+          <span className="pb-[2px] text-[13px] leading-[19px] font-medium tracking-[0.4px]">
+            {callerLabel(caller)}
+          </span>
+          <span className="text-[11px] leading-[16px]">{caller.number}</span>
+        </span>
+      </span>
+      <span className="flex flex-col items-end">
+        <button
+          type="button"
+          onClick={onConnect}
+          disabled={disabled}
+          className="mb-[4px] rounded-[5px] border border-webphone-queue-connect-border bg-webphone-queue px-[6px] text-[11px] leading-[18px] font-bold shadow-webphone-button outline-none active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100"
+        >
+          Connect
+        </button>
+        <span className="pt-[3px] text-[10px] leading-[14px] tabular-nums">Wait Time: {wait}</span>
+      </span>
+    </div>
+  );
+}
+
+/**
+ * Picking a caller from the queue mid-call asks one question — what happens
+ * to the call you're on? Each button pairs the two halves of its answer: the
+ * main glyph says connect (or end), the badge says what becomes of the other
+ * call. Red left, green right, the way round production's own incoming call
+ * puts end and answer. Smaller than production's ringing buttons: this is a
+ * choice the rep is making, not a call demanding an answer.
+ */
+function QueueOfferChoices({
+  current,
+  onHoldAndConnect,
+  onEndAndConnect,
+  onBack,
+}: {
+  current: Call | null;
+  onHoldAndConnect: () => void;
+  onEndAndConnect: () => void;
+  onBack: () => void;
+}) {
+  return (
+    // Where production's Accept / Decline sit, so the eye finds them there.
+    <div className="mt-auto flex w-full flex-col items-center pb-[15px]">
+      <div className="flex gap-[16px]">
+        {current ? (
+          <>
+            <OfferButton
+              tone="decline"
+              icon={<WebphoneCallEnd className="size-[26px]" />}
+              badge={<WebphoneCall className="size-[13px] text-webphone-accept" />}
+              label="End & connect"
+              hint="Ends the current call"
+              onClick={onEndAndConnect}
+            />
+            <OfferButton
+              tone="accept"
+              icon={<WebphoneCall className="size-[24px]" />}
+              badge={<WebphonePause className="size-[13px] text-webphone-incoming" />}
+              label="Hold & connect"
+              hint="Puts the current call on hold"
+              onClick={onHoldAndConnect}
+            />
+          </>
+        ) : (
+          <OfferButton
+            tone="accept"
+            icon={<WebphoneCall className="size-[22px]" />}
+            label="Connect"
+            hint={null}
+            onClick={onHoldAndConnect}
+          />
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={onBack}
+        className="mt-[14px] text-[13px] leading-[21px] text-webphone-incoming-muted underline outline-none hover:text-white"
+      >
+        Back to queue
+      </button>
+    </div>
+  );
+}
+
+function OfferButton({
+  tone,
+  icon,
+  badge,
+  label,
+  hint,
+  onClick,
+}: {
+  tone: "accept" | "decline";
+  icon: React.ReactNode;
+  /** What becomes of the current call, pinned to the circle's corner. */
+  badge?: React.ReactNode;
+  label: string;
+  hint: string | null;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group flex w-[150px] flex-col items-center outline-none"
+    >
+      <span
+        className={cn(
+          "relative flex size-[48px] items-center justify-center rounded-full text-white transition-transform group-active:scale-[0.97]",
+          tone === "accept" ? "bg-webphone-accept" : "bg-webphone-decline"
+        )}
+      >
+        {icon}
+        {badge ? (
+          <span className="absolute -right-[3px] -bottom-[3px] flex size-[22px] items-center justify-center rounded-full bg-white shadow-webphone-button">
+            {badge}
+          </span>
+        ) : null}
+      </span>
+      <span className="mt-[8px] text-[13px] leading-[18px] font-medium text-white">{label}</span>
+      {hint ? (
+        <span className="whitespace-nowrap text-[11px] leading-[15px] text-webphone-incoming-muted">
+          {hint}
+        </span>
+      ) : null}
+    </button>
   );
 }
 
@@ -231,7 +819,7 @@ function IdleScreen({
           onKeyDown={(event) => {
             if (event.key === "Enter") onCall();
           }}
-          className="size-full bg-transparent pr-12 pl-[52px] text-[20px] font-light text-foreground outline-none"
+          className="size-full bg-transparent pr-12 pl-[52px] text-[20px] font-normal text-foreground outline-none"
         />
         <button
           type="button"
@@ -312,12 +900,34 @@ function IdleScreen({
 
 function IncomingScreen({
   number,
+  name,
+  lineNumber = OWN_LINE,
+  title = "Incoming Call",
+  location,
+  crm,
   onAccept,
   onDecline,
+  choices,
 }: {
   number: string;
+  /** A known contact: production puts the name where the number would be. */
+  name?: string;
+  /** The JustCall number they rang — a queued caller may be on another line. */
+  lineNumber?: string;
+  /**
+   * "Connect with" when the rep picked this caller from the queue: nothing is
+   * ringing them, so the screen shouldn't say it is.
+   */
+  title?: string;
+  location?: string;
+  crm?: Caller["crm"];
   onAccept: () => void;
   onDecline: () => void;
+  /**
+   * Replaces Accept / Decline / Hang Up when picking a caller from the queue
+   * mid-call: the choice there is what happens to the call already running.
+   */
+  choices?: React.ReactNode;
 }) {
   return (
     <div className="flex h-full flex-col items-center bg-webphone-incoming">
@@ -325,14 +935,21 @@ function IncomingScreen({
       <span className="mt-10 size-20 overflow-clip rounded-full border-[5px] border-white shadow-webphone-halo">
         <img src={callerAvatar} alt="" className="size-full object-cover" />
       </span>
-      <p className="mt-5 text-[15.5px] leading-[22px] text-webphone-incoming-muted">
-        Incoming Call
-      </p>
+      <p className="mt-5 text-[15.5px] leading-[22px] text-webphone-incoming-muted">{title}</p>
       <p className="pt-[10px] text-[19px] leading-[27px] font-medium text-webphone-caller">
-        {number}
+        {name ?? number}
       </p>
       <p className="text-[16px] leading-[23px] font-medium text-webphone-caller">{number}</p>
+      {location ? (
+        <p className="text-[15px] leading-[21px] text-webphone-incoming-muted">{location}</p>
+      ) : null}
+      {crm ? (
+        <div className="mt-[20px]">
+          <CrmPill crm={crm} />
+        </div>
+      ) : null}
 
+      {choices ?? (
       <div className="mt-auto flex w-full flex-col items-center pb-[15px]">
         <div className="flex gap-[58px]">
           <TooltipTrigger content={<Tooltip theme="dark" title="Accept Call" />}>
@@ -362,261 +979,11 @@ function IncomingScreen({
           Hang Up
         </button>
       </div>
+      )}
 
       <p className="mb-[15px] w-full rounded-b-[7px] bg-webphone-line-strip pt-[6px] pb-[7px] text-center text-[15px] leading-[21px] text-white">
-        Line: <span className="font-bold">{OWN_LINE}</span>
+        Line: <span className="font-bold">{lineNumber}</span>
       </p>
-    </div>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Live                                                                       */
-/* -------------------------------------------------------------------------- */
-
-function formatClock(ms: number) {
-  const total = Math.max(0, Math.floor(ms / 1000));
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return `${pad(Math.floor(total / 3600))}:${pad(Math.floor((total % 3600) / 60))}:${pad(total % 60)}`;
-}
-
-function LiveScreen({
-  number,
-  startedAt,
-  onHangup,
-}: {
-  number: string;
-  startedAt: number;
-  onHangup: () => void;
-}) {
-  const [now, setNow] = React.useState(() => Date.now());
-  const [muted, setMuted] = React.useState(false);
-  const [onHold, setOnHold] = React.useState(false);
-  const [recording, setRecording] = React.useState(true);
-
-  React.useEffect(() => {
-    const tick = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(tick);
-  }, []);
-
-  return (
-    <div className="relative flex h-full flex-col items-center bg-webphone-live pt-[31px] text-white">
-      <button
-        type="button"
-        aria-pressed={recording}
-        onClick={() => setRecording((value) => !value)}
-        className="absolute top-[25px] left-[10px] flex h-[22px] items-center gap-[3px] rounded-full bg-white px-[9px] shadow-webphone-button outline-none"
-      >
-        <span className="text-[11px] leading-[10px] font-semibold text-webphone-hangup">
-          {recording ? "Record" : "Paused"}
-        </span>
-        <span
-          className={cn(
-            "size-[7px] rounded-full",
-            recording ? "bg-webphone-record-dot" : "bg-webphone-control-border"
-          )}
-        />
-      </button>
-
-      <SignalReadout />
-
-      <span className="mt-[53px] flex size-[82px] items-center justify-center rounded-full border-2 border-white">
-        <WebphonePersonAddOutline className="mt-[6px] size-[60px]" />
-      </span>
-      <p className="mt-[10px] text-[18px] leading-[26px] font-thin">{number}</p>
-      <p className="text-[15px] leading-[21px] font-thin">Calling via - {OWN_LINE}</p>
-      <p className="mt-[10px] flex h-[30px] w-full items-center justify-center bg-webphone-live-strip text-[13px] leading-[19px]">
-        {onHold ? "On hold :" : "Talking :"}
-      </p>
-      <p className="text-[18px] leading-[26px] font-thin tabular-nums">
-        {formatClock(now - startedAt)}
-      </p>
-
-      <div className="mt-[40px] grid grid-cols-2 gap-x-[22px] gap-y-[22px]">
-        <CallControl icon={<WebphoneMic className="size-5" />} label={muted ? "Unmute" : "Mute"} active={muted} onClick={() => setMuted((v) => !v)} />
-        <CallControl icon={<WebphonePause className="size-5" />} label={onHold ? "Resume" : "Hold"} active={onHold} onClick={() => setOnHold((v) => !v)} />
-        <CallControl icon={<WebphoneDialpad className="size-[18px]" />} label="Keypad" />
-        <CallControl icon={<WebphonePersonAdd className="size-5" />} label="Transfer" />
-      </div>
-
-      <div className="relative mt-[15px] flex w-full justify-center">
-        <button
-          type="button"
-          aria-label="Hang up"
-          onClick={onHangup}
-          className="flex h-[45px] w-[110px] items-center justify-center rounded-full bg-white shadow-webphone-button outline-none active:scale-[0.97]"
-        >
-          <WebphoneCallEnd className="size-[34px] text-webphone-hangup" />
-        </button>
-        <span
-          aria-hidden="true"
-          className="absolute top-1 left-[257px] flex size-10 items-center justify-center rounded-full bg-white text-webphone-hangup shadow-webphone-button"
-        >
-          <WebphoneVoicemail className="size-[22px]" />
-        </span>
-      </div>
-    </div>
-  );
-}
-
-/** Production's call controls: a ring with the icon and its label inside. */
-function CallControl({
-  icon,
-  label,
-  active = false,
-  onClick,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  active?: boolean;
-  onClick?: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={onClick ? active : undefined}
-      className={cn(
-        "flex size-[65px] flex-col items-center gap-px rounded-full border pt-[15px] outline-none transition-colors",
-        active
-          ? "border-white bg-white/15"
-          : "border-webphone-control-border hover:border-white"
-      )}
-    >
-      <span className="flex h-5 items-center">{icon}</span>
-      <span className="text-[10px] leading-[14px]">{label}</span>
-    </button>
-  );
-}
-
-/** Top-right: the collapse caret, four signal bars, and the call-notes sheet. */
-function SignalReadout() {
-  return (
-    <span aria-hidden="true" className="absolute top-[25px] right-[10px] flex items-end gap-[6px]">
-      <WebphoneExpand className="mb-[1px] size-5 text-white" />
-      <span className="flex items-end gap-[3px] pb-[2px]">
-        {["h-[6px]", "h-[9px]", "h-[12px]", "h-[15px]"].map((height) => (
-          <span key={height} className={cn("w-1 rounded-full bg-webphone-signal", height)} />
-        ))}
-      </span>
-      <WebphoneNotes className="size-[26px] text-webphone-quality" />
-    </span>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Wrap-up — after the call ends                                              */
-/* -------------------------------------------------------------------------- */
-
-/** Production's outcome list is per-account; these stand in for a typical one. */
-const CALL_OUTCOMES = [
-  "Interested",
-  "Not interested",
-  "Call back later",
-  "Left voicemail",
-  "Wrong number",
-];
-const NOTE_LIMIT = 1500;
-
-function WrapUpScreen({ number, onDone }: { number: string; onDone: () => void }) {
-  const [rating, setRating] = React.useState(0);
-  const [hovered, setHovered] = React.useState(0);
-  const [outcome, setOutcome] = React.useState("");
-  const [note, setNote] = React.useState("");
-  const shown = hovered || rating;
-
-  return (
-    <div className="flex h-full flex-col bg-webphone-live text-white">
-      <div className="flex h-[35px] shrink-0 items-end justify-end bg-webphone-wrapup-header px-[10px] pb-[3px]">
-        <button
-          type="button"
-          onClick={onDone}
-          className="text-[12px] leading-[16px] tracking-[0.4px] text-webphone-incoming-muted underline outline-none hover:text-white"
-        >
-          Dismiss
-        </button>
-      </div>
-
-      {/* The call that just ended: production's red ring, not a live control. */}
-      <div className="flex h-[74px] shrink-0 items-center gap-[14px] bg-webphone-wrapup-summary pl-[31px]">
-        <span className="flex size-[52px] shrink-0 items-center justify-center rounded-full border-2 border-webphone-ended text-webphone-ended">
-          <WebphoneCallEnd className="size-[30px]" />
-        </span>
-        <span className="flex flex-col">
-          <span className="text-[15px] leading-[20px] font-thin">{number}</span>
-          <span className="text-[13px] leading-[19px] font-thin">Calling via - {OWN_LINE}</span>
-        </span>
-      </div>
-
-      <div className="flex h-[42px] shrink-0 items-center justify-between border-b-2 border-webphone-wrapup-rule px-[15px]">
-        <span className="text-[15px] leading-[20px] font-thin">Rate this call</span>
-        <span className="flex" onMouseLeave={() => setHovered(0)}>
-          {[1, 2, 3, 4, 5].map((star) => (
-            <button
-              key={star}
-              type="button"
-              aria-label={`${star} star${star === 1 ? "" : "s"}`}
-              aria-pressed={rating === star}
-              onMouseEnter={() => setHovered(star)}
-              onClick={() => setRating(star)}
-              className={cn(
-                "outline-none transition-colors",
-                star <= shown ? "text-webphone-quality" : "text-webphone-star"
-              )}
-            >
-              <WebphoneStar className="size-[19px]" />
-            </button>
-          ))}
-        </span>
-      </div>
-
-      <div className="flex flex-1 flex-col items-center pt-[15px]">
-        <p className="text-[15px] leading-[20px] font-thin">Add a note</p>
-
-        <label className="relative mt-[12px] w-[250px]">
-          <span className="sr-only">Call outcome</span>
-          <select
-            value={outcome}
-            onChange={(event) => setOutcome(event.target.value)}
-            className="h-[28px] w-full appearance-none rounded-[3px] bg-white pr-6 pl-[10px] text-[12px] text-foreground outline-none"
-          >
-            <option value="" disabled>
-              Select call outcome
-            </option>
-            {CALL_OUTCOMES.map((option) => (
-              <option key={option}>{option}</option>
-            ))}
-          </select>
-          <WebphoneCaret className="pointer-events-none absolute top-[6px] right-[4px] size-4 text-webphone-star" />
-        </label>
-
-        <label className="mt-[6px] w-[250px]">
-          <span className="sr-only">Notes</span>
-          <textarea
-            value={note}
-            maxLength={NOTE_LIMIT}
-            onChange={(event) => setNote(event.target.value)}
-            placeholder="Notes"
-            className="block h-[102px] w-full resize-none bg-webphone-wrapup-field px-[4px] py-[6px] text-[12px] leading-[17px] text-white outline-none placeholder:text-webphone-placeholder"
-          />
-        </label>
-        <span className="mt-[3px] w-[250px] text-right text-[10px] leading-[14px] font-medium text-webphone-caller">
-          {note.length}/{NOTE_LIMIT}
-        </span>
-
-        <button
-          type="button"
-          onClick={onDone}
-          className="mt-[26px] h-[39px] w-[180px] rounded-full bg-webphone-save text-[15px] text-white outline-none active:scale-[0.98]"
-        >
-          Save
-        </button>
-        {/* Both stay inert: the prototype has no SMS composer or scheduler. */}
-        <span className="mt-[9px] text-[14px] leading-[22px] font-medium">Send a text message</span>
-        <span className="mt-auto mb-[17px] text-[14px] leading-[20px] font-medium underline">
-          Schedule follow up call
-        </span>
-      </div>
     </div>
   );
 }

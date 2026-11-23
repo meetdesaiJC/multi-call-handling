@@ -2,7 +2,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { Sidenav, type SidenavItemsTransition } from "@/components/Sidenav";
 import { Dashboard } from "./Dashboard";
 import { DialerPanel } from "./DialerPanel";
-import { ProductionDialer } from "./ProductionDialer";
+import { ProductionDialer, type SecondCallStyle } from "./ProductionDialer";
+import { Dropdown } from "@/components/Dropdown";
 import {
   JustCallAiShell,
   JUSTCALL_AI_ITEMS,
@@ -663,6 +664,7 @@ function DialerWindow({
   agentAssist,
 }: DialerWindowParams) {
   const busyReasons = useSharedBusyReasons();
+  const [secondCallStyle, setSecondCallStyle] = useState<SecondCallStyle>(readSecondCallStyle);
 
   // The tab is its own window now, so its title is the only label the agent
   // has for it while it sits behind the page they popped it from.
@@ -676,8 +678,16 @@ function DialerWindow({
   if (!agentAssist) {
     const ringOnOpen = new URLSearchParams(window.location.search).get("ring") === "1";
     return (
-      <div className="flex min-h-screen justify-center bg-secondary-bg pt-[25px]">
-        <ProductionDialer ringOnOpen={ringOnOpen} className="self-start" />
+      <div className="relative flex min-h-screen justify-center bg-secondary-bg pt-[25px]">
+        <SecondCallApproachSwitch value={secondCallStyle} onChange={setSecondCallStyle} />
+        {/* Keyed so switching approach starts a clean phone: comparing the two
+            mid-call would leave one approach's state on the other's screen. */}
+        <ProductionDialer
+          key={secondCallStyle}
+          ringOnOpen={ringOnOpen}
+          secondCallStyle={secondCallStyle}
+          className="self-start"
+        />
       </div>
     );
   }
@@ -689,6 +699,46 @@ function DialerWindow({
       assistAvailable={assistAvailable}
       agentAssist={agentAssist}
       busyReasons={busyReasons}
+    />
+  );
+}
+
+/**
+ * The two ways a second caller can announce itself, side by side for review.
+ * `?approach=queue` opens straight on the second, so a link can show either.
+ */
+const SECOND_CALL_APPROACHES = [
+  { value: "alert", label: "Approach 1 · Alert card" },
+  { value: "queue", label: "Approach 2 · Queue chip" },
+];
+
+function readSecondCallStyle(): SecondCallStyle {
+  return new URLSearchParams(window.location.search).get("approach") === "queue"
+    ? "queue"
+    : "alert";
+}
+
+function SecondCallApproachSwitch({
+  value,
+  onChange,
+}: {
+  value: SecondCallStyle;
+  onChange: (next: SecondCallStyle) => void;
+}) {
+  return (
+    <Dropdown
+      aria-label="Second caller approach"
+      options={SECOND_CALL_APPROACHES}
+      value={value}
+      onValueChange={(next) => {
+        const style = (Array.isArray(next) ? next[0] : next) as SecondCallStyle;
+        onChange(style);
+        // Kept in the URL so a reload, or a shared link, stays on it.
+        const url = new URL(window.location.href);
+        url.searchParams.set("approach", style);
+        window.history.replaceState(null, "", url);
+      }}
+      className="absolute top-[25px] left-[25px] w-[240px]"
     />
   );
 }

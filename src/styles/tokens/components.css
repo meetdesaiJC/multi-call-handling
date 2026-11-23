@@ -242,6 +242,22 @@
   --color-webphone-line-strip: var(--color-legacy-navy-950);
   --color-webphone-accept: var(--color-legacy-green-400);
   --color-webphone-decline: var(--color-legacy-red-500);
+  /* Multi-call: the tab that says a caller is waiting behind the live
+     call. The call button's green, so it reads as "someone to answer". */
+  --color-webphone-queue: var(--color-legacy-green-500);
+  /* The queue list the chip opens (Figma 130:417): a translucent navy scrim
+     over the blurred call, then production's stacked wells and caller card. */
+  --color-webphone-queue-scrim: color-mix(in srgb, var(--color-legacy-navy-990) 59%, transparent);
+  --color-webphone-queue-edge: var(--color-legacy-navy-875);
+  --color-webphone-queue-header: color-mix(in srgb, var(--color-legacy-black) 25%, transparent);
+  --color-webphone-queue-stats: color-mix(in srgb, var(--color-legacy-navy-925) 20%, transparent);
+  --color-webphone-queue-muted: color-mix(in srgb, var(--color-legacy-gray-350) 50%, transparent);
+  --color-webphone-queue-section: color-mix(in srgb, var(--color-legacy-slate-500) 22%, transparent);
+  --color-webphone-queue-section-fg: var(--color-legacy-gray-350);
+  --color-webphone-queue-card: color-mix(in srgb, var(--color-legacy-slate-300) 95%, transparent);
+  --color-webphone-queue-avatar-fg: color-mix(in srgb, var(--color-legacy-black) 31%, transparent);
+  --color-webphone-queue-connect-border: var(--color-legacy-green-600);
+  --color-webphone-queue-handle: color-mix(in srgb, var(--color-legacy-slate-700) 70%, transparent);
   /* Post-call wrap-up: a lifted header holding Dismiss, a darker call
      summary, the rating row, then the note form on the live navy. */
   --color-webphone-wrapup-header: color-mix(in srgb, var(--color-legacy-navy-800) 92%, var(--color-white));

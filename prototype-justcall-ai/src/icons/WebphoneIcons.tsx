@@ -62,6 +62,12 @@ export const WebphoneClose = material(
 );
 export const WebphoneExpand = material("M16.59 8.59 12 13.17 7.41 8.59 6 10l6 6 6-6z");
 export const WebphoneCaret = material("m7 10 5 5 5-5z");
+/** Material `expand_less` — the queue panel's collapse handle. */
+export const WebphoneCollapse = material("M12 8l-6 6 1.41 1.41L12 10.83l4.59 4.58L18 14z");
+/** Material `person` — a queued caller with no contact photo. */
+export const WebphonePerson = material(
+  "M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+);
 export const WebphoneStar = material(
   "M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"
 );
