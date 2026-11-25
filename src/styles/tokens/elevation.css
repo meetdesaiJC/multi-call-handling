@@ -41,7 +41,9 @@
   --shadow-webphone-halo: 0 0 0 5px rgba(255, 255, 255, 0.14),
     0 0 0 10px rgba(255, 255, 255, 0.07);
   --shadow-webphone-glow: 0 0 11px 0 var(--color-legacy-lime-500);
-  /* The "caller in queue" tab: production casts it up and out, so it reads
-     as lifted off the card's corner rather than printed on it. */
-  --shadow-webphone-queue: 1px -3px 8px 1px rgb(128, 128, 128);
+  /* Prototype 2's queue sheet casts upward, onto the call it rises over. */
+  --shadow-webphone-sheet: 0 -8px 24px 0 rgba(0, 0, 0, 0.45);
+  /* The CRM menu sits on that navy sheet, so it needs a darker drop than
+     the light-UI menus' shadow-400 to lift off it. */
+  --shadow-webphone-menu: 0 8px 24px 0 rgba(0, 0, 0, 0.35);
 }

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { Sidenav, type SidenavItemsTransition } from "@/components/Sidenav";
 import { Dashboard } from "./Dashboard";
 import { DialerPanel } from "./DialerPanel";
-import { ProductionDialer, type SecondCallStyle } from "./ProductionDialer";
+import { ProductionDialer, type QueueDesign } from "./ProductionDialer";
 import { Dropdown } from "@/components/Dropdown";
 import {
   JustCallAiShell,
@@ -24,6 +24,7 @@ import { ContactsPage } from "./ContactsPage";
 import { AppIntegrationsPage } from "./AppIntegrationsPage";
 import { CallLogsPage } from "./CallLogsPage";
 import { WorkflowsPage } from "./WorkflowsPage";
+import { MULTI_CALL_WORKFLOW } from "./workflowsData";
 import { BulkSmsPage } from "./BulkSmsPage";
 import { PhoneNumbersPage } from "./PhoneNumbersPage";
 import { LiveMonitoringPage } from "./LiveMonitoringPage";
@@ -105,6 +106,12 @@ const RELOADED =
     ?.type === "reload";
 if (RELOADED && window.location.hash) {
   window.history.replaceState(null, "", window.location.pathname + window.location.search);
+}
+// The popped-out dialer lives in the query string, not the hash, so it needs
+// its own reset — otherwise a refreshed dialer tab is a dead end with no way
+// back to the cards. Read before DIALER_WINDOW below, which is what decides.
+if (RELOADED && new URLSearchParams(window.location.search).get("view") === "dialer") {
+  window.history.replaceState(null, "", window.location.pathname);
 }
 
 function viewFromHash(): AppView {
@@ -405,7 +412,11 @@ function LicenseFlow({
   /** Switches between Lite and View-only; the admin flow has no switch. */
   onLicenseChange?: (license: License) => void;
 }) {
-  const [page, setPage] = useState<LicensePage>("dashboard");
+  // The queue-settings admin lands on Workflows: the setting lives in a
+  // workflow's Queue node, and the dashboard has nothing to say about it.
+  const [page, setPage] = useState<LicensePage>(
+    experience === "license-admin" ? "workflows" : "dashboard"
+  );
   // Only Lite and View-only have license limits — they get the locks from
   // licenseLocks.ts, so every screen follows the same rule. The admin and the
   // multi-call rep are full-license users: nothing locked, the dialer included.
@@ -585,7 +596,10 @@ function LicenseFlow({
             ) : page === "call-logs" ? (
               <CallLogsPage locks={callLogsLocks(license)} />
             ) : page === "workflows" ? (
-              <WorkflowsPage locks={workflowsLocks(license)} />
+              <WorkflowsPage
+                locks={workflowsLocks(license)}
+                pinned={experience === "license-admin" ? MULTI_CALL_WORKFLOW : undefined}
+              />
             ) : page === "bulk-sms" ? (
               <BulkSmsPage locks={bulkSmsLocks(license)} />
             ) : page === "inbox" ? (
@@ -664,7 +678,8 @@ function DialerWindow({
   agentAssist,
 }: DialerWindowParams) {
   const busyReasons = useSharedBusyReasons();
-  const [secondCallStyle, setSecondCallStyle] = useState<SecondCallStyle>(readSecondCallStyle);
+  const [queueDesign, setQueueDesign] = useState<QueueDesign>(readQueueDesign);
+  const [queueFill, setQueueFill] = useState(readQueueFill);
 
   // The tab is its own window now, so its title is the only label the agent
   // has for it while it sits behind the page they popped it from.
@@ -679,13 +694,21 @@ function DialerWindow({
     const ringOnOpen = new URLSearchParams(window.location.search).get("ring") === "1";
     return (
       <div className="relative flex min-h-screen justify-center bg-secondary-bg pt-[25px]">
-        <SecondCallApproachSwitch value={secondCallStyle} onChange={setSecondCallStyle} />
-        {/* Keyed so switching approach starts a clean phone: comparing the two
-            mid-call would leave one approach's state on the other's screen. */}
+        {/* Review controls, not product: compact and half-faded so the phone
+            stays the subject, and full strength while the reviewer reaches
+            for one or has its menu open. Docked bottom-centre, below the
+            phone, so they never sit beside it competing for the eye. */}
+        <div className="fixed bottom-[25px] left-1/2 z-40 flex -translate-x-1/2 gap-2 opacity-50 transition-opacity *:w-max hover:opacity-100 focus-within:opacity-100">
+          <QueueDesignSwitch value={queueDesign} onChange={setQueueDesign} />
+          <QueueFillSwitch value={queueFill} onChange={setQueueFill} />
+        </div>
+        {/* Keyed so switching prototype starts a clean phone: comparing the
+            two mid-call would leave one queue's state on the other's screen. */}
         <ProductionDialer
-          key={secondCallStyle}
+          key={queueDesign}
           ringOnOpen={ringOnOpen}
-          secondCallStyle={secondCallStyle}
+          queueDesign={queueDesign}
+          queueFill={queueFill}
           className="self-start"
         />
       </div>
@@ -704,41 +727,101 @@ function DialerWindow({
 }
 
 /**
- * The two ways a second caller can announce itself, side by side for review.
- * `?approach=queue` opens straight on the second, so a link can show either.
+ * The two queue designs, side by side for review. The redesign is the one
+ * being presented, so it is Prototype 1 and opens by default; the current
+ * queue is Prototype 2, a backup behind `?proto=current`. The param names
+ * the design rather than its number so renumbering never re-points a link —
+ * and `?proto=1` links shared before the swap meant the current queue, so
+ * they still land there.
  */
-const SECOND_CALL_APPROACHES = [
-  { value: "alert", label: "Approach 1 · Alert card" },
-  { value: "queue", label: "Approach 2 · Queue chip" },
+/** One step down from the field size, so the review switches don't read as form fields. */
+const REVIEW_SWITCH_TRIGGER = "h-8 rounded-lg px-2.5 text-paragraph-sm";
+
+const QUEUE_DESIGNS = [
+  { value: "redesign", label: "Prototype 1 · Redesigned queue" },
+  { value: "current", label: "Prototype 2 · Current queue" },
 ];
 
-function readSecondCallStyle(): SecondCallStyle {
-  return new URLSearchParams(window.location.search).get("approach") === "queue"
-    ? "queue"
-    : "alert";
+function readQueueDesign(): QueueDesign {
+  const proto = new URLSearchParams(window.location.search).get("proto");
+  return proto === "current" || proto === "1" ? "current" : "redesign";
 }
 
-function SecondCallApproachSwitch({
+function QueueDesignSwitch({
   value,
   onChange,
 }: {
-  value: SecondCallStyle;
-  onChange: (next: SecondCallStyle) => void;
+  value: QueueDesign;
+  onChange: (next: QueueDesign) => void;
 }) {
   return (
     <Dropdown
-      aria-label="Second caller approach"
-      options={SECOND_CALL_APPROACHES}
+      aria-label="Queue prototype"
+      options={QUEUE_DESIGNS}
       value={value}
+      searchable={false}
+      // Docked at the bottom of the screen, so the menu always opens upward.
+      placement="top"
+      triggerClassName={REVIEW_SWITCH_TRIGGER}
+      menuClassName="w-max min-w-full rounded-lg"
       onValueChange={(next) => {
-        const style = (Array.isArray(next) ? next[0] : next) as SecondCallStyle;
-        onChange(style);
+        const design = (Array.isArray(next) ? next[0] : next) as QueueDesign;
+        onChange(design);
         // Kept in the URL so a reload, or a shared link, stays on it.
         const url = new URL(window.location.href);
-        url.searchParams.set("approach", style);
+        if (design === "current") url.searchParams.set("proto", "current");
+        else url.searchParams.delete("proto");
         window.history.replaceState(null, "", url);
       }}
-      className="absolute top-[25px] left-[25px] w-[240px]"
+    />
+  );
+}
+
+/**
+ * How full the queue is. The live demo brings callers one at a time, which
+ * never shows the list at the length a busy support line reaches; the fills
+ * do, and swap in place mid-call. `?queue=10` opens on one.
+ *
+ * The live demo is labelled by its count like the fills, since one caller is
+ * what it opens with; it keeps value "0" so links and the arrival flow
+ * behind it are unchanged.
+ */
+const QUEUE_FILLS = [
+  { value: "0", label: "Queue · 1 caller" },
+  { value: "3", label: "Queue · 3 callers" },
+  { value: "10", label: "Queue · 10 callers" },
+];
+
+function readQueueFill(): number {
+  const raw = new URLSearchParams(window.location.search).get("queue");
+  return QUEUE_FILLS.some((fill) => fill.value === raw) ? Number(raw) : 0;
+}
+
+function QueueFillSwitch({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (next: number) => void;
+}) {
+  return (
+    <Dropdown
+      aria-label="Callers in queue"
+      options={QUEUE_FILLS}
+      value={String(value)}
+      searchable={false}
+      // Docked at the bottom of the screen, so the menu always opens upward.
+      placement="top"
+      triggerClassName={REVIEW_SWITCH_TRIGGER}
+      menuClassName="w-max min-w-full rounded-lg"
+      onValueChange={(next) => {
+        const fill = Number(Array.isArray(next) ? next[0] : next);
+        onChange(fill);
+        const url = new URL(window.location.href);
+        if (fill > 0) url.searchParams.set("queue", String(fill));
+        else url.searchParams.delete("queue");
+        window.history.replaceState(null, "", url);
+      }}
     />
   );
 }

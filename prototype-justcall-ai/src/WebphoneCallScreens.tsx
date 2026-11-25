@@ -15,7 +15,6 @@ import {
   WebphoneVoicemail,
 } from "./icons/WebphoneIcons";
 import { IntegrationLogo } from "./icons/IntegrationLogos";
-import callerAvatar from "./assets/legacy-dialer/caller-avatar.png";
 import {
   LINES,
   callerLabel,
@@ -131,15 +130,12 @@ export function HeldRow({
   now,
   action,
   onAction,
-  onMerge,
   note,
 }: {
   call: Call;
   now: number;
   action: string;
   onAction?: () => void;
-  /** Live screen only: joining the two calls belongs with the held caller. */
-  onMerge?: () => void;
   note?: string;
 }) {
   return (
@@ -153,16 +149,6 @@ export function HeldRow({
           {note ?? "On hold"} · {formatClock(heldFor(call, now))}
         </span>
       </span>
-      {onMerge ? (
-        <button
-          type="button"
-          onClick={onMerge}
-          className="flex h-[26px] shrink-0 items-center gap-[5px] rounded-full border border-white px-[11px] text-[12px] outline-none transition-colors hover:bg-white/15"
-        >
-          <MergeGlyph className="size-[14px]" />
-          Merge
-        </button>
-      ) : null}
       {onAction ? (
         <button
           type="button"
@@ -189,7 +175,6 @@ export function LiveScreen({
   onMute,
   onRecord,
   onSwap,
-  onMerge,
   onHangUp,
   onTransfer,
   onConsult,
@@ -203,7 +188,6 @@ export function LiveScreen({
   onRecord: () => void;
   /** Talk to this held caller instead; the current one goes on hold. */
   onSwap: (id: string) => void;
-  onMerge: () => void;
   onHangUp: () => void;
   onTransfer: (target: TransferTarget) => void;
   onConsult: (target: TransferTarget) => void;
@@ -222,16 +206,19 @@ export function LiveScreen({
       <SignalReadout />
       {compact ? (
         // One row per held caller, each with its own Swap, so the rep picks who
-        // to go back to. Merge sits on the first row only: it joins everyone.
-        <div className="absolute inset-x-0 top-[58px] divide-y divide-webphone-live">
-          {held.map((h, index) => (
+        // to go back to. Swap is the row's only action: merging callers into a
+        // conference is out of scope for this release.
+        // z-10: the caller block below keeps its swap-in `translate`, which
+        // makes it a stacking context painted after this bar — without the
+        // lift it sits over Swap and swallows its clicks.
+        <div className="absolute inset-x-0 top-[58px] z-10 divide-y divide-webphone-live">
+          {held.map((h) => (
             <div key={h.id} className="webphone-held-in">
               <HeldRow
               call={h}
               now={now}
               action="Swap"
               onAction={() => onSwap(h.id)}
-              onMerge={index === 0 ? onMerge : undefined}
               />
             </div>
           ))}
@@ -333,15 +320,6 @@ export function LiveScreen({
   );
 }
 
-/** Two lines meeting in one: production has no merge glyph, so it is drawn. */
-function MergeGlyph({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={className}>
-      <path d="M6 4v4a6 6 0 0 0 6 6M18 4v4a6 6 0 0 1-6 6v6" />
-    </svg>
-  );
-}
-
 /* -------------------------------------------------------------------------- */
 /* Held only — the other call ended; this one waits for one click              */
 /* -------------------------------------------------------------------------- */
@@ -374,9 +352,6 @@ export function HeldScreen({
       <p className="text-[18px] leading-[26px] font-normal tabular-nums">
         {formatClock(heldFor(call, now))}
       </p>
-      <p className="mt-[18px] max-w-[260px] text-center text-[13px] leading-[19px] text-webphone-incoming-muted">
-        Your other call has ended. This caller is still hearing hold music.
-      </p>
 
       <button
         type="button"
@@ -405,79 +380,114 @@ export function ConferenceScreen({
   calls,
   now,
   onRemove,
+  onToggleHold,
   onLeave,
 }: {
   calls: Call[];
   now: number;
   onRemove: (id: string) => void;
+  onToggleHold: (id: string) => void;
   onLeave: () => void;
 }) {
   const [muted, setMuted] = React.useState(false);
   const startedAt = Math.min(...calls.map((c) => c.startedAt));
+  const line = calls[0]?.line;
 
   return (
-    <div className="relative flex h-full flex-col items-center bg-webphone-live pt-[31px] text-white">
+    <div className="relative flex h-full flex-col bg-webphone-live pt-[31px] text-white">
       <RecordPill recording />
       <SignalReadout />
 
-      {/* Merge lands softly: the heading settles in, then each caller
-          drops into the list one after another, so the rep sees the separate
-          calls become one rather than the screen being swapped out. */}
-      <div className="webphone-swap-in flex w-full flex-col items-center">
-        <p className="mt-[40px] text-[18px] leading-[26px] font-thin">Conference</p>
-        <p className="text-[13px] leading-[19px] text-webphone-incoming-muted">
-          You and {calls.length} callers
+      {/* Production's conference layout: a heading, then one white card per
+          person — you first, then each caller with their own hold and
+          hang-up. Merge lands softly: the heading settles in, then the cards
+          drop in one after another, so the rep sees the separate calls
+          become one rather than the screen being swapped out. */}
+      <div className="webphone-swap-in mt-[36px] border-b border-webphone-live-strip px-[16px] pb-[12px]">
+        <p className="text-[14px] leading-[20px]">Conference call</p>
+        <p className="truncate text-[12px] leading-[17px] text-webphone-caller">
+          {line ? `Calling via ${line.label} - ` : ""}
+          {calls.length + 1} Participants
         </p>
-        <p className="mt-[10px] flex h-[30px] w-full items-center justify-center bg-webphone-live-strip text-[13px] leading-[19px]">
-          Talking :
-        </p>
-        <p className="text-[18px] leading-[26px] font-thin tabular-nums">{formatClock(now - startedAt)}</p>
       </div>
 
-      <ul className="mt-[14px] w-full border-t border-webphone-live-strip">
-        {calls.map((call, index) => (
-          <li
-            key={call.id}
-            // One micro-step apart: close enough to read as one move.
-            style={{ animationDelay: `calc(var(--duration-micro) * ${index + 1})` }}
-            className="webphone-merge-in flex h-[52px] items-center gap-[10px] border-b border-webphone-live-strip px-[15px]"
-          >
-            <span className="flex size-[32px] shrink-0 items-center justify-center rounded-full border border-white">
-              <WebphonePersonAddOutline className="mt-[3px] size-[22px]" />
-            </span>
-            <span className="flex min-w-0 flex-1 flex-col">
-              <span className="truncate text-[14px] leading-[18px]">{callerLabel(call)}</span>
-              <span className="text-[11px] leading-[15px] text-webphone-incoming-muted">
-                {call.name ? `${call.number} · ` : ""}
-                {call.line.label}
-              </span>
-            </span>
-            <button
-              type="button"
-              aria-label={`Remove ${callerLabel(call)}`}
-              onClick={() => onRemove(call.id)}
-              className="flex h-[26px] shrink-0 items-center gap-[4px] rounded-full border border-webphone-control-border px-[10px] text-[12px] outline-none transition-colors hover:border-white"
+      <ul className="mt-[16px] flex flex-col gap-[8px] px-[16px]">
+        <li className="webphone-merge-in flex flex-col gap-[2px] rounded-[6px] bg-white px-[11px] py-[10px] text-foreground">
+          <span className="text-[13px] leading-[19px] font-semibold">You</span>
+          <span className="text-[11px] leading-[16px] text-muted-foreground tabular-nums">
+            Call Duration : {formatClock(now - startedAt)}
+          </span>
+        </li>
+        {calls.map((call, index) => {
+          const held = call.heldSince !== null;
+          const label = callerLabel(call);
+          return (
+            <li
+              key={call.id}
+              // One micro-step apart: close enough to read as one move.
+              style={{ animationDelay: `calc(var(--duration-micro) * ${index + 1})` }}
+              className="webphone-merge-in flex items-center gap-[6px] rounded-[6px] bg-white py-[10px] pr-[10px] pl-[11px] text-foreground"
             >
-              <WebphoneClose className="size-[13px]" />
-              Remove
-            </button>
-          </li>
-        ))}
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate text-[13px] leading-[19px] font-semibold">
+                  {call.name ? `${call.name} - ${call.number}` : call.number}
+                </span>
+                <span className="mt-[2px] text-[11px] leading-[16px] text-muted-foreground">
+                  Customer
+                  {held ? <span className="ml-[4px] font-medium text-brand">On Hold</span> : null}
+                </span>
+              </span>
+              <button
+                type="button"
+                aria-label={held ? `Resume ${label}` : `Hold ${label}`}
+                aria-pressed={held}
+                onClick={() => onToggleHold(call.id)}
+                className={cn(
+                  // Production marks a held participant with a blue ring and
+                  // glyph rather than a filled button, so the card stays white.
+                  "flex size-[28px] shrink-0 items-center justify-center rounded-full border bg-white outline-none transition-colors hover:bg-surface-hover focus-visible:ring-2 focus-visible:ring-brand/24",
+                  held ? "border-brand text-brand" : "border-line text-foreground"
+                )}
+              >
+                <WebphonePause className="size-[13px]" />
+              </button>
+              <button
+                type="button"
+                aria-label={`Remove ${label}`}
+                onClick={() => onRemove(call.id)}
+                className="flex size-[28px] shrink-0 items-center justify-center rounded-full bg-white text-webphone-hangup shadow-webphone-button outline-none transition-colors hover:bg-surface-hover focus-visible:ring-2 focus-visible:ring-brand/24"
+              >
+                <WebphoneCallEnd className="size-[18px]" />
+              </button>
+            </li>
+          );
+        })}
       </ul>
 
-      <div className="mt-[18px] flex gap-[22px]">
-        <CallControl
-          icon={<WebphoneMic className="size-5" />}
-          label={muted ? "Unmute" : "Mute"}
-          active={muted}
+      {/* Mute and keypad flank the hang-up, as production lays them out:
+          mute a solid white disc (filled while muted is the inverse, so the
+          state still reads), keypad a ring like the live screen's controls. */}
+      <div className="mt-auto mb-[16px] flex items-center justify-center gap-[16px]">
+        <button
+          type="button"
+          aria-label={muted ? "Unmute" : "Mute"}
+          aria-pressed={muted}
           onClick={() => setMuted((value) => !value)}
-        />
-        <CallControl icon={<WebphoneDialpad className="size-[18px]" />} label="Keypad" />
-      </div>
-
-      <div className="mt-auto mb-[16px] flex flex-col items-center gap-[4px]">
+          className={cn(
+            "flex size-[35px] items-center justify-center rounded-full outline-none transition-colors",
+            muted ? "border border-white bg-transparent text-white" : "bg-white text-black shadow-webphone-button"
+          )}
+        >
+          <WebphoneMic className="size-5" />
+        </button>
         <HangUpPill label="Leave conference" onClick={onLeave} />
-        <span className="text-[11px] leading-[15px] text-webphone-incoming-muted">Leave</span>
+        <button
+          type="button"
+          aria-label="Keypad"
+          className="flex size-[35px] items-center justify-center rounded-full border border-webphone-control-border outline-none transition-colors hover:border-white"
+        >
+          <WebphoneDialpad className="size-[16px]" />
+        </button>
       </div>
     </div>
   );
@@ -507,7 +517,8 @@ export function ConsultScreen({
   return (
     <div className="relative flex h-full flex-col items-center bg-webphone-live pt-[31px] text-white">
       <SignalReadout />
-      <div className="absolute inset-x-0 top-[58px]">
+      {/* Above the caller block's swap-in layer, as on the live screen. */}
+      <div className="absolute inset-x-0 top-[58px] z-10">
         <HeldRow call={transferring} now={now} action="" note="Waiting to be transferred" />
         {otherHeld ? <HeldRow call={otherHeld} now={now} action="" /> : null}
       </div>
@@ -730,7 +741,7 @@ function TransferSheet({
 }
 
 /* -------------------------------------------------------------------------- */
-/* The second call ringing — a notification, not a takeover                    */
+/* The caller's CRM record                                                     */
 /* -------------------------------------------------------------------------- */
 
 /**
@@ -774,111 +785,5 @@ export function CrmPill({
         <WebphoneExpand className={small ? "size-[16px]" : "size-[18px]"} />
       </span>
     </span>
-  );
-}
-
-/**
- * The second call ringing over the live one. It carries everything
- * production's full-screen incoming call shows — photo, name, number,
- * location, CRM record, the line they rang — in the phone's own navy, so it
- * reads as the webphone talking rather than a web notification. The footer
- * is the incoming screen's Line strip, plus the two things only a second
- * call needs: what answering costs, and how long before the queue moves on.
- */
-export function RingingAlert({
-  caller,
-  current,
-  secondsLeft,
-  onAnswer,
-  onDecline,
-}: {
-  caller: Caller;
-  current: Call | null;
-  secondsLeft: number;
-  onAnswer: () => void;
-  onDecline: () => void;
-}) {
-  return (
-    <div
-      role="alert"
-      // A hairline edge and a deep shadow lift it off the navy call screen it
-      // sits on; tucked just under the notch so the Record pill can't peek out.
-      className="webphone-alert-in absolute inset-x-[10px] top-[24px] z-30 overflow-clip rounded-[12px] border border-white/20 bg-webphone-incoming text-white shadow-600"
-    >
-      <div className="p-[12px]">
-        <div className="flex items-center gap-[12px]">
-          <span className="webphone-ring-pulse size-[48px] shrink-0 overflow-clip rounded-full border-[3px] border-white">
-            <img src={callerAvatar} alt="" className="size-full object-cover" />
-          </span>
-          <span className="flex min-w-0 flex-1 flex-col">
-            <span className="text-[11px] leading-[15px] text-webphone-incoming-muted">
-              Incoming call
-            </span>
-            <span className="truncate text-[16px] leading-[22px] font-medium text-webphone-caller">
-              {callerLabel(caller)}
-            </span>
-            <span className="truncate text-[12px] leading-[16px] text-webphone-caller">
-              {caller.name ? caller.number : null}
-              {caller.name && caller.location ? " · " : null}
-              {caller.location ? (
-                <span className="text-webphone-incoming-muted">{caller.location}</span>
-              ) : null}
-            </span>
-          </span>
-        </div>
-
-        {caller.crm ? (
-          <div className="mt-[10px]">
-            <CrmPill crm={caller.crm} size="sm" />
-          </div>
-        ) : null}
-
-        <div className="mt-[12px] flex gap-[8px]">
-          <button
-            type="button"
-            onClick={onDecline}
-            className="flex h-[36px] flex-1 items-center justify-center gap-[6px] rounded-full bg-webphone-decline text-[13px] font-medium outline-none active:scale-[0.97]"
-          >
-            <WebphoneClose className="size-4" />
-            Decline
-          </button>
-          <button
-            type="button"
-            onClick={onAnswer}
-            className="flex h-[36px] flex-1 items-center justify-center gap-[6px] rounded-full bg-webphone-accept text-[13px] font-medium outline-none active:scale-[0.97]"
-          >
-            <WebphoneCall className="size-4" />
-            Answer
-          </button>
-        </div>
-        {current ? (
-          <p className="mt-[6px] text-center text-[11px] leading-[15px] text-webphone-incoming-muted">
-            Answering puts your current call on hold
-          </p>
-        ) : null}
-      </div>
-
-      <p className="flex items-center justify-between bg-webphone-line-strip px-[12px] py-[6px] text-[12px] leading-[16px]">
-        <span>
-          Line: <span className="font-bold">{caller.line.number}</span>{" "}
-          <span className="text-webphone-incoming-muted">· {caller.line.label}</span>
-        </span>
-        <span className="text-webphone-incoming-muted tabular-nums">
-          Back to queue in {secondsLeft}s
-        </span>
-      </p>
-    </div>
-  );
-}
-
-/** The ringing call that went back to the queue — said once, then gone. */
-export function MissedNotice({ caller }: { caller: Caller }) {
-  return (
-    <div
-      role="status"
-      className="webphone-alert-in absolute inset-x-[10px] top-[28px] z-30 rounded-[10px] bg-webphone-status-bg px-[12px] py-[9px] text-[12px] leading-[16px] text-white"
-    >
-      {callerLabel(caller)} went back to the {caller.line.label} queue.
-    </div>
   );
 }

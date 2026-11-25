@@ -19,6 +19,11 @@ export interface Workflow {
    * and an eye in place of the pencil.
    */
   viewOnly?: boolean;
+  /**
+   * What an unanswered call falls through to. Voicemail unless set: the queue
+   * flow exists to show where the multi-call setting lives.
+   */
+  flow?: "voicemail" | "queue";
 }
 
 const JC_SALES = { name: "JC Sales", initials: "JS" };
@@ -100,6 +105,21 @@ export const WORKFLOWS: Workflow[] = [
     createdBy: JC_SALES,
   },
 ];
+
+/**
+ * The multi-call admin prototype's workflow: ring the team, queue whoever
+ * nobody answered. Its Queue node holds the setting that lets a busy agent
+ * hold their current caller and take the queued one. Listed only in that
+ * prototype, so the license screens keep the table their Figma frame shows.
+ */
+export const MULTI_CALL_WORKFLOW: Workflow = {
+  id: "multi-call-example",
+  name: "Multi-call handling example",
+  status: "Draft",
+  updated: "Today, 12:24 PM",
+  createdBy: JC_SALES,
+  flow: "queue",
+};
 
 /** The table's footer: the frame shows page 1 of 257 workflows. */
 export const WORKFLOWS_TOTAL = 257;
