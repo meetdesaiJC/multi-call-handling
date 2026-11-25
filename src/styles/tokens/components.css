@@ -258,7 +258,6 @@
   --color-webphone-sheet-line: color-mix(in srgb, var(--color-white) 8%, transparent);
   --color-webphone-sheet-note: color-mix(in srgb, var(--color-white) 7%, transparent);
   --color-webphone-sheet-note-fg: var(--color-legacy-slate-100);
-  --color-webphone-sheet-chip: color-mix(in srgb, var(--color-white) 10%, transparent);
   --color-webphone-sheet-fg-strong: color-mix(in srgb, var(--color-white) 80%, transparent);
   --color-webphone-sheet-fg-muted: color-mix(in srgb, var(--color-white) 60%, transparent);
   --color-webphone-sheet-fg-label: color-mix(in srgb, var(--color-white) 55%, transparent);

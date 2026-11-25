@@ -105,15 +105,13 @@ export function QueueSheet({
         <div className="relative min-h-0 flex-1">
           <ol className="h-full overflow-y-auto border-t border-webphone-sheet-line pb-[28px]">
             {/* Newest first: the caller who just joined is the one the rep
-                hasn't seen yet. Each keeps their real place in the queue,
-                so the numbers count down the list. */}
-            {callers
-              .map((caller, index) => ({ caller, position: index + 1 }))
-              .sort((a, b) => b.caller.arrivedAt - a.caller.arrivedAt)
-              .map(({ caller, position }) => (
+                hasn't seen yet. No position numbers — the wait time already
+                says who has been holding longest. */}
+            {[...callers]
+              .sort((a, b) => b.arrivedAt - a.arrivedAt)
+              .map((caller) => (
                 <QueueSheetRow
                   key={`${caller.number}-${caller.arrivedAt}`}
-                  position={position}
                   caller={caller}
                   wait={formatWait(now - caller.arrivedAt)}
                   talking={talking}
@@ -136,7 +134,6 @@ export function QueueSheet({
 }
 
 function QueueSheetRow({
-  position,
   caller,
   wait,
   talking,
@@ -144,7 +141,6 @@ function QueueSheetRow({
   onHoldAndConnect,
   onEndAndConnect,
 }: {
-  position: number;
   caller: QueuedCaller;
   wait: string;
   talking: boolean;
@@ -156,9 +152,6 @@ function QueueSheetRow({
   return (
     <li className="flex flex-col gap-[10px] border-b border-webphone-sheet-line py-[12px] pr-[12px] pl-[16px] last:border-b-0">
       <div className="flex items-center gap-[10px]">
-        <span className="flex size-[22px] shrink-0 items-center justify-center rounded-full bg-webphone-sheet-chip text-[11px] font-bold text-webphone-sheet-fg-strong">
-          {position}
-        </span>
         <span className="flex min-w-0 flex-1 flex-col gap-[2px]">
           <span className="flex min-w-0 items-center gap-[6px]">
             <span className="truncate text-[13px] font-semibold">
@@ -180,7 +173,7 @@ function QueueSheetRow({
         </span>
       </div>
 
-      <div className="flex gap-[8px] pl-[32px]">
+      <div className="flex gap-[8px]">
         {/* Each button says what it does to the call the rep is on — the
             half of the action its two-word label can't carry. */}
         {talking ? (
