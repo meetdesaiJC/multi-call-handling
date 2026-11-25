@@ -2148,7 +2148,7 @@ button.call-bar-control[data-help="active"] {
 /* Production webphone — multi-call                                    */
 /* ------------------------------------------------------------------ */
 
-/* The second call's alert drops in from the notch: a short travel, so a
+/* The queue chip and its list drop in from the notch: a short travel, so a
    panel-internal step rather than a full sheet's. */
 @keyframes webphone-alert-in {
   from {
@@ -2164,7 +2164,36 @@ button.call-bar-control[data-help="active"] {
   animation: webphone-alert-in var(--duration-moderate) var(--ease-entrance) both;
 }
 
-/* The transfer sheet rises over the call: large travel, a drawer's step. */
+/* The queue rail rises from behind the card. It travels the 36px it shows,
+   so a panel-internal step; it arrives, so it decelerates. */
+@keyframes webphone-rail-in {
+  from {
+    translate: 0 36px;
+  }
+  to {
+    translate: 0 0;
+  }
+}
+.webphone-rail-in {
+  animation: webphone-rail-in var(--duration-moderate) var(--ease-entrance) both;
+}
+
+/* The dim behind prototype 2's queue sheet. Opacity only, so it needs no
+   reduced-motion path. */
+@keyframes webphone-dim-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.webphone-dim-in {
+  animation: webphone-dim-in var(--duration-slow) var(--ease-entrance) both;
+}
+
+/* The transfer sheet rises over the call: large travel, a drawer's step.
+   The redesign's queue sheet rises the same way. */
 @keyframes webphone-sheet-in {
   from {
     translate: 0 100%;
@@ -2177,18 +2206,49 @@ button.call-bar-control[data-help="active"] {
   animation: webphone-sheet-in var(--duration-slow) var(--ease-entrance) both;
 }
 
-/* The ringing badge breathes while the call waits — an ambient loop, so it
-   runs on the loop token rather than the transition scale. */
-@keyframes webphone-ring-pulse {
-  0% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-webphone-accept) 45%, transparent);
+/* The redesign's queue opens from the rail above the card, so it unfolds
+   downward like a menu from its trigger — a short drop with a fade, not a
+   full-height slide, which on a desktop reads as a mobile sheet. */
+@keyframes webphone-queue-drop-in {
+  from {
+    opacity: 0;
+    translate: 0 -16px;
   }
-  100% {
-    box-shadow: 0 0 0 10px color-mix(in srgb, var(--color-webphone-accept) 0%, transparent);
+  to {
+    opacity: 1;
+    translate: 0 0;
   }
 }
-.webphone-ring-pulse {
-  animation: webphone-ring-pulse var(--duration-ambient-loop) var(--ease-exit) infinite;
+.webphone-queue-drop-in {
+  animation: webphone-queue-drop-in var(--duration-moderate) var(--ease-entrance) both;
+}
+
+/* Hiding plays the drop in reverse — back up into the rail it came from —
+   one step quicker and accelerating away, so dismissing never takes as long
+   as arriving. The dim behind it fades out on the same beat. */
+@keyframes webphone-queue-lift-out {
+  from {
+    opacity: 1;
+    translate: 0 0;
+  }
+  to {
+    opacity: 0;
+    translate: 0 -16px;
+  }
+}
+[data-state="closed"] > .webphone-queue-drop-in {
+  animation: webphone-queue-lift-out var(--duration-base) var(--ease-exit) both;
+}
+@keyframes webphone-dim-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+[data-state="closed"] > .webphone-dim-in {
+  animation: webphone-dim-out var(--duration-base) var(--ease-exit) both;
 }
 
 /* Swap: the caller now talking drops in from the held bar above; the one
@@ -2248,7 +2308,7 @@ button.call-bar-control[data-help="active"] {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  /* Travel becomes a fade; the pulse holds still. */
+  /* Travel becomes a fade. */
   @keyframes webphone-alert-in {
     from {
       opacity: 0;
@@ -2257,11 +2317,16 @@ button.call-bar-control[data-help="active"] {
       opacity: 1;
     }
   }
-  .webphone-sheet-in {
+  .webphone-sheet-in,
+  .webphone-queue-drop-in {
     animation-name: webphone-alert-in;
     animation-duration: var(--duration-base);
   }
-  .webphone-ring-pulse {
-    animation: none;
+  /* Still runs its full beat, so the unmount timer lands on a finished fade. */
+  [data-state="closed"] > .webphone-queue-drop-in {
+    animation-name: webphone-dim-out;
+  }
+  .webphone-rail-in {
+    animation-name: webphone-alert-in;
   }
 }

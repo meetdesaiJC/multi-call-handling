@@ -24,17 +24,14 @@ export const LINES = {
 export type Line = (typeof LINES)[keyof typeof LINES];
 
 /**
- * The PRD leaves the per-rep limit to engineering. The prototype holds two —
- * one talking, one on hold — which is the floor every competitor in the PRD
- * supports. A call beyond it stays in the queue and never rings this rep.
- */
-export const CONCURRENT_CALL_LIMIT = 2;
-/**
- * The queue-chip approach lets the rep keep pulling callers from the queue
- * list past that: one talking and two on hold. Nothing rings them, so the
- * rep only ever takes on a third call on purpose.
+ * The PRD leaves the per-rep limit to engineering. The rep pulls callers from
+ * the queue list up to three — one talking and two on hold. Nothing rings
+ * them, so the rep only ever takes on another call on purpose.
  */
 export const QUEUE_CALL_LIMIT = 3;
+
+/** One CRM's record of a caller: which CRM, and what that CRM calls them. */
+export type CrmRecord = { id: IntegrationId; contact: string };
 
 export interface Caller {
   number: string;
@@ -43,7 +40,13 @@ export interface Caller {
   /** Where the number is from, as production prints it under the caller. */
   location?: string;
   /** The CRM record the number matched — production's contact pill. */
-  crm?: { id: IntegrationId; contact: string };
+  crm?: CrmRecord;
+  /**
+   * Every CRM record the number matched, primary first — a contact often
+   * lives in more than one, and not always under the same name. Omitted when
+   * `crm` is the only one.
+   */
+  integrations?: CrmRecord[];
 }
 
 export interface Call extends Caller {
@@ -84,36 +87,26 @@ export interface WebphoneState {
   calls: Call[];
   focusedId: string | null;
   conference: boolean;
-  /** A call ringing while the rep is already on one. */
-  ringing: (Caller & { arrivedAt: number }) | null;
   /** A call ringing while the rep is free: production's full-screen offer. */
   offer: Caller | null;
   /** A warm transfer in progress: the rep is talking to the target first. */
   consult: { callId: string; target: TransferTarget; startedAt: number } | null;
   wrapUps: WrapUp[];
-  /** The last call that rang and went back to the queue unanswered. */
-  missed: (Caller & { at: number }) | null;
 }
 
 export const INITIAL_STATE: WebphoneState = {
   calls: [],
   focusedId: null,
   conference: false,
-  ringing: null,
   offer: null,
   consult: null,
   wrapUps: [],
-  missed: null,
 };
 
 type Action =
   | { type: "offer"; caller: Caller }
   | { type: "decline-offer" }
   | { type: "start"; caller: Caller; inbound: boolean; at: number }
-  | { type: "ring"; caller: Caller; at: number }
-  | { type: "ring-timeout"; at: number }
-  | { type: "answer-ringing"; at: number }
-  | { type: "decline-ringing"; at: number }
   | { type: "connect"; caller: Caller; at: number }
   | { type: "toggle-hold"; at: number }
   | { type: "toggle-mute" }
@@ -122,6 +115,7 @@ type Action =
   | { type: "resume"; id: string; at: number }
   | { type: "merge"; at: number }
   | { type: "remove-participant"; id: string; at: number }
+  | { type: "toggle-participant-hold"; id: string; at: number }
   | { type: "leave-conference"; at: number }
   | { type: "hang-up"; at: number }
   | { type: "transfer"; target: TransferTarget; at: number }
@@ -129,8 +123,7 @@ type Action =
   | { type: "complete-consult"; at: number }
   | { type: "cancel-consult"; at: number }
   | { type: "draft"; id: string; draft: WrapUpDraft }
-  | { type: "done"; id: string }
-  | { type: "clear-missed" };
+  | { type: "done"; id: string };
 
 let nextId = 0;
 const newId = () => `call-${++nextId}`;
@@ -206,38 +199,9 @@ export function reducer(state: WebphoneState, action: Action): WebphoneState {
       return { ...state, offer: null, calls: [...state.calls, call], focusedId: call.id };
     }
 
-    case "ring":
-      // At the limit, or in a conference (which already holds both lines),
-      // the call stays in the queue and this rep never hears it.
-      if (state.calls.length >= CONCURRENT_CALL_LIMIT || state.conference || state.ringing) {
-        return state;
-      }
-      return { ...state, ringing: { ...action.caller, arrivedAt: action.at } };
-
-    // Declining is the rep saying no before the timeout would: either way the
-    // caller goes back to the queue, and the notice says so.
-    case "decline-ringing":
-    case "ring-timeout":
-      if (!state.ringing) return state;
-      return { ...state, ringing: null, missed: { ...state.ringing, at: action.at } };
-
-    case "answer-ringing": {
-      if (!state.ringing) return state;
-      // Answering holds whatever the rep was on — the PRD's one rule for
-      // the second call — before connecting the new one.
-      const held = { ...state, calls: state.calls.map((c) => hold(c, action.at)) };
-      const { arrivedAt: _arrivedAt, ...caller } = state.ringing;
-      return reducer({ ...held, ringing: null }, {
-        type: "start",
-        caller,
-        inbound: true,
-        at: action.at,
-      });
-    }
-
     case "connect": {
-      // Pulling a caller from the queue list (the queue-chip approach). Same
-      // rule as answering a ring: whatever the rep was on goes on hold first.
+      // Pulling a caller from the queue list: whatever the rep was on goes on
+      // hold first — the PRD's one rule for the second call.
       // At the limit it does nothing — the list says so and disables Connect.
       if (state.calls.length >= QUEUE_CALL_LIMIT || state.conference) return state;
       const held = { ...state, calls: state.calls.map((c) => hold(c, action.at)) };
@@ -287,6 +251,16 @@ export function reducer(state: WebphoneState, action: Action): WebphoneState {
       return { ...next, conference: false, focusedId: remaining?.id ?? null };
     }
 
+    // In a conference the rep holds one participant at a time without
+    // leaving it: that caller hears hold music, the rest keep talking.
+    case "toggle-participant-hold":
+      return {
+        ...state,
+        calls: state.calls.map((c) =>
+          c.id !== action.id ? c : c.heldSince === null ? hold(c, action.at) : unhold(c, action.at)
+        ),
+      };
+
     case "leave-conference":
       return state.calls.reduce<WebphoneState>(
         (acc, call) => end(acc, call.id, action.at, "Left conference"),
@@ -331,8 +305,6 @@ export function reducer(state: WebphoneState, action: Action): WebphoneState {
       };
     case "done":
       return { ...state, wrapUps: state.wrapUps.filter((w) => w.id !== action.id) };
-    case "clear-missed":
-      return { ...state, missed: null };
   }
 }
 

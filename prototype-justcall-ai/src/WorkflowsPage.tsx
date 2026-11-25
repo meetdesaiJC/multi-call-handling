@@ -223,15 +223,26 @@ function NumberCell({ number }: { number?: Workflow["number"] }) {
   );
 }
 
-export function WorkflowsPage({ locks }: { locks?: WorkflowsLocks } = {}) {
+export function WorkflowsPage({
+  locks,
+  pinned,
+}: {
+  locks?: WorkflowsLocks;
+  /**
+   * A workflow a prototype adds on top of the frame's rows — the most
+   * recently edited one, so it leads the list the way a fresh edit would.
+   */
+  pinned?: Workflow;
+} = {}) {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [openWorkflow, setOpenWorkflow] = useState<Workflow | null>(null);
 
+  const all = pinned ? [pinned, ...WORKFLOWS] : WORKFLOWS;
   const q = search.trim().toLowerCase();
-  const rows = q ? WORKFLOWS.filter((w) => w.name.toLowerCase().includes(q)) : WORKFLOWS;
+  const rows = q ? all.filter((w) => w.name.toLowerCase().includes(q)) : all;
   const selectable = rows.filter((w) => !w.viewOnly);
   const allSelected = selectable.length > 0 && selectable.every((w) => selected.has(w.id));
   const someSelected = selectable.some((w) => selected.has(w.id));
@@ -246,7 +257,7 @@ export function WorkflowsPage({ locks }: { locks?: WorkflowsLocks } = {}) {
   const toggleAll = () =>
     setSelected(allSelected ? new Set() : new Set(selectable.map((w) => w.id)));
 
-  const total = q ? rows.length : WORKFLOWS_TOTAL;
+  const total = q ? rows.length : WORKFLOWS_TOTAL + (pinned ? 1 : 0);
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
   const first = total ? (page - 1) * pageSize + 1 : 0;
   const last = Math.min(page * pageSize, total);

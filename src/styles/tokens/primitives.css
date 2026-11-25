@@ -73,6 +73,10 @@
   --color-red-600: #d92d20;
   --color-red-700: #b42318;
 
+  /* Green — DS 2.0 Success scale (Figma 25378:4052). Only the steps in use. */
+  --color-green-600: #039855;
+  --color-green-700: #027a48;
+
   /* Teal — coaching "pace" cue; no other surface uses it yet. */
   --color-teal-50: #f0fdf9;
   --color-teal-200: #99f6e0;
@@ -135,6 +139,18 @@
   --color-legacy-red-500: #ff4360;
   --color-legacy-red-400: #d9534f;
   --color-legacy-red-200: #f09696;
+  /* Redesigned queue sheet (Figma 164:1066): its navy, the dim behind it,
+     the note text, the CRM pill, and the soft reds of "End & wrap up". */
+  --color-legacy-navy-880: #16263f;
+  --color-legacy-navy-995: #0b1626;
+  --color-legacy-slate-100: #e3e8f0;
+  --color-legacy-gray-75: #edf0f2;
+  --color-legacy-slate-750: #334155;
+  --color-legacy-red-350: #f87171;
+  --color-legacy-red-300: #fca5a5;
+  /* Its CRM "Open in" menu (Figma 166:1339). */
+  --color-legacy-slate-550: #64748b;
+  --color-legacy-navy-960: #0f1b2d;
   --color-legacy-lime-500: #00ff44;
   --color-legacy-lime-400: #2dff2d;
   --color-legacy-gold-400: #ffd700;

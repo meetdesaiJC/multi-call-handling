@@ -68,6 +68,10 @@ export const WebphoneCollapse = material("M12 8l-6 6 1.41 1.41L12 10.83l4.59 4.5
 export const WebphonePerson = material(
   "M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
 );
+/** Material `open_in_new` — open a CRM record in its own app. */
+export const WebphoneOpenInNew = material(
+  "M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"
+);
 export const WebphoneStar = material(
   "M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"
 );
